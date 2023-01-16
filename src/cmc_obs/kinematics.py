@@ -1,7 +1,9 @@
 import numpy as np
 from scipy.optimize import fsolve
 from tqdm import trange
-
+from fitter.util import angular_width
+import astropy.units as u
+import cmctoolkit as ck
 
 def comp_veldisp(vi, ei):
     """
@@ -24,7 +26,7 @@ def comp_veldisp(vi, ei):
     guess_sigma_c = np.std(vi)
     guess_vbar = np.mean(vi)  # use sample mean as initial guess for solution
 
-    root = fsolve(func, [guess_sigma_c, guess_vbar], factor=0.1)
+    root = fsolve(func, [guess_sigma_c, guess_vbar], factor=0.1, maxfev=1000)
     # print("root = ", root)
 
     # assert np.isclose(func(root), [0.0, 0.0])  # func(root) should be almost 0.0.
@@ -96,18 +98,59 @@ def veldisp_profile(x, vi, ei, stars_per_bin=15):
 
         # put this here for now, this shouldn't happen anymore?
         if np.abs(sigma[i]) > 100:
-            raise RuntimeError("sigma is too large, solver failed")
+            raise RuntimeError("solver failed, try more stars per bin")
 
     # return bin centers and velocity dispersion
     return (bin_edges[:-1] + bin_edges[1:]) / 2, sigma, delta_sigma
 
 
+class Kinematics:
+    def __init__(self, snapshot):
+        self.snapshot = snapshot
+        self.snapshot.make_2d_projection()
+        self.dist = snapshot.dist
+        u.set_enabled_equivalencies(angular_width(D=self.dist * u.kpc))
 
-def hubble_PMs():
-    pass
+        filttable = ck.load_filtertable("/home/peter/research/cmctoolkit/filt_index.txt")
+        self.snapshot.add_photometry(filttable)
 
-def gaia_PMs():
-    pass
 
-def LOS_dispersion():
-    pass
+    def hubble_PMs(self, stars_per_bin=15):
+
+        # inner 100 arcsec only
+        rad_lim = (100 * u.arcsec).to(u.pc).value
+
+        # 16 < V < 17.5
+
+        # uncertainty of 0.1 mas/yr
+        pass
+
+    def gaia_PMs(self, stars_per_bin=15):
+        # select MS stars
+
+        # select each magnitude bin
+
+        # proper motion uncertainties are
+        # 0.02-0.03 mas/yr for G<15,
+        #  0.07 mas/yr at G=17,
+        #  0.5 mas/yr at G=20,
+        #  and 1.4 mas/yr at G=21 mag."
+
+        # just do $G$ from 3 - 20
+        pass
+
+    def LOS_dispersion(self, stars_per_bin=15):
+
+        # select only red giants
+        giants = self.snapshot.data[self.snapshot.data["startype"] == 3]
+        # select only stars with V < 15
+        # giants = giants[giants["obsMag_V"] < 15]
+
+        # uncertainty of 1 km/s
+        err = np.ones(len(giants)) * 1
+
+        # build profile
+        bin_centers, sigma, delta_sigma = veldisp_profile(
+            x=giants["d[PC]"], vi=giants["vz[KM/S]"], ei=err, stars_per_bin=stars_per_bin
+        )
+        return bin_centers, sigma, delta_sigma
