@@ -5,6 +5,7 @@ from fitter.util import angular_width
 import astropy.units as u
 import cmctoolkit as ck
 
+
 def comp_veldisp(vi, ei):
     """
     (from Rebecca)
@@ -111,9 +112,10 @@ class Kinematics:
         self.dist = snapshot.dist
         u.set_enabled_equivalencies(angular_width(D=self.dist * u.kpc))
 
-        filttable = ck.load_filtertable("/home/peter/research/cmctoolkit/filt_index.txt")
+        filttable = ck.load_filtertable(
+            "/home/peter/research/cmctoolkit/filt_index.txt"
+        )
         self.snapshot.add_photometry(filttable)
-
 
     def hubble_PMs(self, stars_per_bin=15):
 
@@ -123,12 +125,19 @@ class Kinematics:
         # 16 < V < 17.5
 
         # uncertainty of 0.1 mas/yr
+        err = (0.1 * u.Unit("mas/yr")).to(u.km / u.s)
+        errs = np.ones(len(self.snapshot.data)) * err
+
+        # build profile
+
         pass
 
     def gaia_PMs(self, stars_per_bin=15):
         # select MS stars
 
-        # select each magnitude bin
+        ms = self.snapshot.data[
+            self.snapshot.data["startype"] == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        ]
 
         # proper motion uncertainties are
         # 0.02-0.03 mas/yr for G<15,
@@ -136,7 +145,21 @@ class Kinematics:
         #  0.5 mas/yr at G=20,
         #  and 1.4 mas/yr at G=21 mag."
 
-        # just do $G$ from 3 - 20
+        # select each magnitude bin
+
+        bright = ms[ms["obsMag_GaiaG"] < 15]
+        err_bright = (0.03 * u.Unit("mas/yr")).to(u.km / u.s)
+
+        med = ms[(ms["obsMag_GaiaG"] >= 15) & (ms["obsMag_GaiaG"] < 17)]
+        err_med = (0.07 * u.Unit("mas/yr")).to(u.km / u.s)
+
+        faint = ms[(ms["obsMag_GaiaG"] >= 17) & (ms["obsMag_GaiaG"] < 20)]
+        err_faint = (0.5 * u.Unit("mas/yr")).to(u.km / u.s)
+
+        # build each profile
+
+        # concatenate the profiles
+
         pass
 
     def LOS_dispersion(self, stars_per_bin=15):
@@ -151,6 +174,9 @@ class Kinematics:
 
         # build profile
         bin_centers, sigma, delta_sigma = veldisp_profile(
-            x=giants["d[PC]"], vi=giants["vz[KM/S]"], ei=err, stars_per_bin=stars_per_bin
+            x=giants["d[PC]"],
+            vi=giants["vz[KM/S]"],
+            ei=err,
+            stars_per_bin=stars_per_bin,
         )
         return bin_centers, sigma, delta_sigma

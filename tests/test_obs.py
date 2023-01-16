@@ -8,9 +8,9 @@ def snapshot():
     browser = CMCBrowser()
 
     browser.load_snapshot(
-        model_name="N4e5_rv1_rg8_Z0.02", ss_name="initial.snap0158.dat.gz", distance=3.5
+        model_name="N4e5_rv1_rg8_Z0.02", ss_name="initial.snap0147.dat.gz", distance=4.0
     )
-    return browser.loaded_snapshots["N4e5_rv1_rg8_Z0.02/initial.snap0158.dat.gz"]
+    return browser.loaded_snapshots["N4e5_rv1_rg8_Z0.02/initial.snap0147.dat.gz"]
 
 
 @pytest.fixture
@@ -19,4 +19,4 @@ def kinematics_object(snapshot):
 
 
 def test_LOS(kinematics_object):
-    kinematics_object.LOS_dispersion(stars_per_bin=30)
+    kinematics_object.LOS_dispersion(stars_per_bin=25)
