@@ -4,6 +4,7 @@ from tqdm import trange
 from fitter.util import angular_width
 import astropy.units as u
 import cmctoolkit as ck
+import logging
 
 
 def comp_veldisp(vi, ei):
@@ -99,7 +100,9 @@ def veldisp_profile(x, vi, ei, stars_per_bin=15):
 
         # put this here for now, this shouldn't happen anymore?
         if np.abs(sigma[i]) > 100:
-            raise RuntimeError("solver failed, try more stars per bin")
+            logging.warning("solver failed, try more stars per bin")
+            sigma[i] = np.nan
+            delta_sigma[i] = np.nan
 
     # return bin centers and velocity dispersion
     return (bin_edges[:-1] + bin_edges[1:]) / 2, sigma, delta_sigma
@@ -166,8 +169,15 @@ class Kinematics:
 
         # select only red giants
         giants = self.snapshot.data[self.snapshot.data["startype"] == 3]
+
         # select only stars with V < 15
-        # giants = giants[giants["obsMag_V"] < 15]
+        # giants = giants[giants["obsMag_V"] < 15
+
+        # sort by projected distance, not sure if this is necessary
+        giants = giants.sort_values("d[PC]")
+
+        # exclude stars with r[PC] < 0.1 pc
+        giants = giants[giants["r[PC]"] > 0.1]
 
         # uncertainty of 1 km/s
         err = np.ones(len(giants)) * 1
