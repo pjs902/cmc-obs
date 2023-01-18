@@ -85,27 +85,46 @@ def veldisp_profile(x, vi, ei, stars_per_bin=15):
 
     # calculate number of bins
     bins = int(np.ceil(len(x) / stars_per_bin))
-    bin_edges = np.histogram_bin_edges(x, bins=bins)
+    # bin_edges = np.histogram_bin_edges(x, bins=bins)
 
     # initialize arrays
     sigma = np.zeros(bins)
     delta_sigma = np.zeros(bins)
 
+    # # loop over bins, tqdm
+    # for i in trange(len(bin_edges) - 1):
+    #     # select stars in bin
+    #     idx = (x >= bin_edges[i]) & (x < bin_edges[i + 1])
+    #     # calculate velocity dispersion
+    #     sigma[i], delta_sigma[i] = comp_veldisp(vi[idx], ei[idx])
+
+    #     # put this here for now, this shouldn't happen anymore?
+    #     if np.abs(sigma[i]) > 100:
+    #         logging.warning("solver failed, try more stars per bin")
+    #         sigma[i] = np.nan
+    #         delta_sigma[i] = np.nan
+
+    bin_centers = np.zeros(bins)
+
     # loop over bins, tqdm
-    for i in trange(len(bin_edges) - 1):
-        # select stars in bin
-        idx = (x >= bin_edges[i]) & (x < bin_edges[i + 1])
+    start = 0
+    for i in trange(bins):
+        # set end of bin
+        end = np.min([start + stars_per_bin, len(x)])
         # calculate velocity dispersion
-        sigma[i], delta_sigma[i] = comp_veldisp(vi[idx], ei[idx])
+        sigma[i], delta_sigma[i] = comp_veldisp(vi[start:end], ei[start:end])
+        bin_centers[i] = np.mean(x[start:end])
+
+        start += stars_per_bin
 
         # put this here for now, this shouldn't happen anymore?
         if np.abs(sigma[i]) > 100:
             logging.warning("solver failed, try more stars per bin")
             sigma[i] = np.nan
             delta_sigma[i] = np.nan
-
     # return bin centers and velocity dispersion
-    return (bin_edges[:-1] + bin_edges[1:]) / 2, sigma, delta_sigma
+    # return (bin_edges[:-1] + bin_edges[1:]) / 2, sigma, delta_sigma
+    return bin_centers, sigma, delta_sigma
 
 
 class Kinematics:
@@ -120,27 +139,60 @@ class Kinematics:
         )
         self.snapshot.add_photometry(filttable)
 
-    def hubble_PMs(self, stars_per_bin=15):
+        # sort by projected distance
+        self.snapshot.data = self.snapshot.data.sort_values(by="d[PC]")
+
+    def hubble_PMs(self, stars_per_bin=120):
+
+        ms = self.snapshot.data[
+            self.snapshot.data["startype"].isin([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+        ]
+        print("number of stars = ", len(ms))
 
         # inner 100 arcsec only
         rad_lim = (100 * u.arcsec).to(u.pc).value
 
-        # 16 < V < 17.5
+        # select only stars with 16 < V < 17.5
+        ms = ms[ms["obsMag_V"] < 17.5]
+        ms = ms[ms["obsMag_V"] > 16.0]
+        ms = ms[ms["d[PC]"] < rad_lim]
+        print("number of stars = ", len(ms))
 
         # uncertainty of 0.1 mas/yr
         err = (0.1 * u.Unit("mas/yr")).to(u.km / u.s)
-        errs = np.ones(len(self.snapshot.data)) * err
+        errs = (np.ones(len(self.snapshot.data)) * err).value
 
-        # build profile
+        # build profiles
+        bin_centers, sigma_r, delta_sigma_r = veldisp_profile(
+            x=ms["d[PC]"].values,
+            vi=ms["vd[KM/S]"].values,
+            ei=errs,
+            stars_per_bin=stars_per_bin,
+        )
 
-        pass
+        bin_centers, sigma_t, delta_sigma_t = veldisp_profile(
+            x=ms["d[PC]"].values,
+            vi=ms["va[KM/S]"].values,
+            ei=errs,
+            stars_per_bin=stars_per_bin,
+        )
+        # get mean mass for these profiles
+        mean_mass = np.mean(ms["m[MSUN]"])
 
-    def gaia_PMs(self, stars_per_bin=15):
+        return bin_centers, sigma_r, delta_sigma_r, sigma_t, delta_sigma_t, mean_mass
+
+    def gaia_PMs(self, stars_per_bin=120):
         # select MS stars
 
         ms = self.snapshot.data[
-            self.snapshot.data["startype"] == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+            self.snapshot.data["startype"].isin([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
         ]
+        print("number of stars = ", len(ms))
+
+        # select based on G mag
+        ms = ms[ms["obsMag_GaiaG"] < 17]
+        ms = ms[ms["obsMag_GaiaG"] > 3]
+        print("number of stars = ", len(ms))
 
         # proper motion uncertainties are
         # 0.02-0.03 mas/yr for G<15,
@@ -148,45 +200,115 @@ class Kinematics:
         #  0.5 mas/yr at G=20,
         #  and 1.4 mas/yr at G=21 mag."
 
-        # select each magnitude bin
+        # function to calculate error based on G mag
+        def err_func(G):
+            # TODO: make this smooth?
+            if G < 15:
+                return 0.02
+            elif G < 17:
+                return 0.07
+            elif G < 20:
+                return 0.5
+            else:
+                return 1.4
 
-        bright = ms[ms["obsMag_GaiaG"] < 15]
-        err_bright = (0.03 * u.Unit("mas/yr")).to(u.km / u.s)
+        err = np.array([err_func(G) for G in ms["obsMag_GaiaG"]])
 
-        med = ms[(ms["obsMag_GaiaG"] >= 15) & (ms["obsMag_GaiaG"] < 17)]
-        err_med = (0.07 * u.Unit("mas/yr")).to(u.km / u.s)
+        # convert to km/s
+        errs = (err * u.Unit("mas/yr")).to(u.km / u.s).value
 
-        faint = ms[(ms["obsMag_GaiaG"] >= 17) & (ms["obsMag_GaiaG"] < 20)]
-        err_faint = (0.5 * u.Unit("mas/yr")).to(u.km / u.s)
+        # build profiles
+        bin_centers, sigma_r, delta_sigma_r = veldisp_profile(
+            x=ms["d[PC]"].values,
+            vi=ms["vd[KM/S]"].values,
+            ei=errs,
+            stars_per_bin=stars_per_bin,
+        )
 
-        # build each profile
+        bin_centers, sigma_t, delta_sigma_t = veldisp_profile(
+            x=ms["d[PC]"].values,
+            vi=ms["va[KM/S]"].values,
+            ei=errs,
+            stars_per_bin=stars_per_bin,
+        )
 
-        # concatenate the profiles
+        # get mean mass for this profile
+        mean_mass = np.mean(ms["m[MSUN]"])
 
-        pass
+        return bin_centers, sigma_r, delta_sigma_r, sigma_t, delta_sigma_t, mean_mass
 
-    def LOS_dispersion(self, stars_per_bin=15):
+    def LOS_dispersion(self, stars_per_bin=70):
 
         # select only red giants
         giants = self.snapshot.data[self.snapshot.data["startype"] == 3]
 
+        print("number of giants", len(giants))
+
         # select only stars with V < 15
-        # giants = giants[giants["obsMag_V"] < 15
+        giants = giants[giants["obsMag_V"] < 15]
 
-        # sort by projected distance, not sure if this is necessary
-        giants = giants.sort_values("d[PC]")
-
-        # exclude stars with r[PC] < 0.1 pc
-        giants = giants[giants["r[PC]"] > 0.1]
+        print("number of giants", len(giants))
 
         # uncertainty of 1 km/s
         err = np.ones(len(giants)) * 1
 
         # build profile
         bin_centers, sigma, delta_sigma = veldisp_profile(
-            x=giants["d[PC]"],
-            vi=giants["vz[KM/S]"],
+            x=giants["d[PC]"].values,
+            vi=giants["vz[KM/S]"].values,
             ei=err,
             stars_per_bin=stars_per_bin,
         )
-        return bin_centers, sigma, delta_sigma
+
+        # get mean mass for this profile
+        mean_mass = np.mean(giants["m[MSUN]"])
+        return bin_centers, sigma, delta_sigma, mean_mass
+
+    def number_density(self):
+
+        # select main sequence stars
+        ms = self.snapshot.data[
+            self.snapshot.data["startype"].isin([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+        ]
+        print("number of stars = ", len(ms))
+
+        # select stars brighter than V 17
+        ms = ms[ms["obsMag_V"] < 17]
+        print("number of stars = ", len(ms))
+
+        Nbins = 50
+        # calculate number of stars per bin given total bins
+        stars_per_bin = len(ms) / Nbins
+
+        # initialize arrays
+        bin_centers = np.zeros(Nbins)
+        number_density = np.zeros(Nbins)
+        delta_number_density = np.zeros(Nbins)
+
+        bin_edges = []
+
+        # loop over bins
+        for i in range(Nbins):
+            # select stars in bin
+            bin = ms[int(i * stars_per_bin) : int((i + 1) * stars_per_bin)]
+
+            # get edges of bin
+            bin_min = np.min(bin["d[PC]"])
+            bin_max = np.max(bin["d[PC]"])
+
+            bin_edges.append(bin_min)
+            bin_edges.append(bin_max)
+
+            # get center of bin
+            bin_centers[i] = (bin_max + bin_min) / 2
+            bin_centers[i] = np.mean(bin["d[PC]"])
+
+            # calculate surface number density, in current annulus
+            number_density[i] = len(bin) / (np.pi * (bin_max**2 - bin_min**2))
+
+            # calculate error
+            delta_number_density[i] = np.sqrt(len(bin)) / (
+                np.pi * (bin_max**2 - bin_min**2)
+            )
+
+        return bin_centers, number_density, delta_number_density, bin_edges
