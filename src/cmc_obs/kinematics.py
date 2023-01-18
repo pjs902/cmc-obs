@@ -306,4 +306,7 @@ class Kinematics:
                 np.pi * (bin_max**2 - bin_min**2)
             )
 
-        return bin_centers, number_density, delta_number_density
+        # get mean mass for this profile
+        mean_mass = np.mean(ms["m[MSUN]"])
+
+        return bin_centers, number_density, delta_number_density, mean_mass
