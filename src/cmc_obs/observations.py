@@ -61,6 +61,7 @@ def comp_veldisp(vi, ei):
 def veldisp_profile(x, vi, ei, stars_per_bin=15):
     """
     Compute velocity dispersion profile from velocity dispersion measurements and their uncertainties.
+    Creates bins with equal number of stars in each bin.
 
     Parameters
     ----------
@@ -71,7 +72,7 @@ def veldisp_profile(x, vi, ei, stars_per_bin=15):
     ei : array_like
         Array of velocity uncertainties.
     stars_per_bin : int
-        Number of stars per bin. Default is 15.
+        Number of stars per bin. Default is 15 (more is generally better).
 
     Returns
     -------
@@ -90,19 +91,6 @@ def veldisp_profile(x, vi, ei, stars_per_bin=15):
     # initialize arrays
     sigma = np.zeros(bins)
     delta_sigma = np.zeros(bins)
-
-    # # loop over bins, tqdm
-    # for i in trange(len(bin_edges) - 1):
-    #     # select stars in bin
-    #     idx = (x >= bin_edges[i]) & (x < bin_edges[i + 1])
-    #     # calculate velocity dispersion
-    #     sigma[i], delta_sigma[i] = comp_veldisp(vi[idx], ei[idx])
-
-    #     # put this here for now, this shouldn't happen anymore?
-    #     if np.abs(sigma[i]) > 100:
-    #         logging.warning("solver failed, try more stars per bin")
-    #         sigma[i] = np.nan
-    #         delta_sigma[i] = np.nan
 
     bin_centers = np.zeros(bins)
 
@@ -127,22 +115,49 @@ def veldisp_profile(x, vi, ei, stars_per_bin=15):
     return bin_centers, sigma, delta_sigma
 
 
-class Kinematics:
-    def __init__(self, snapshot):
+class Observations:
+    """
+    A class for computing observations from a snapshot.
+    """
+
+    def __init__(
+        self, snapshot, filtindex="/home/peter/research/cmctoolkit/filt_index.txt"
+    ):
+        """ """
         self.snapshot = snapshot
         self.snapshot.make_2d_projection()
         self.dist = snapshot.dist
         u.set_enabled_equivalencies(angular_width(D=self.dist * u.kpc))
 
-        filttable = ck.load_filtertable(
-            "/home/peter/research/cmctoolkit/filt_index.txt"
-        )
+        filttable = ck.load_filtertable(filtindex)
         self.snapshot.add_photometry(filttable)
 
         # sort by projected distance
         self.snapshot.data = self.snapshot.data.sort_values(by="d[PC]")
 
     def hubble_PMs(self, stars_per_bin=120):
+        """
+        Simulate proper motion measurements with HST-like performance.
+        (performance details from VHB2019)
+
+        Parameters
+        ----------
+        stars_per_bin : int
+            Number of stars per bin. Default is 120 (more is generally better).
+
+        Returns
+        -------
+        bin_centers : array_like
+            Array of bin centers.
+        sigma_r : array_like
+            Array of velocity dispersions in the radial direction.
+        delta_sigma_r : array_like
+            Array of velocity dispersion uncertainties in the radial direction.
+        sigma_t : array_like
+            Array of velocity dispersions in the tangential direction.
+        delta_sigma_t : array_like
+            Array of velocity dispersion uncertainties in the tangential direction.
+        """
 
         ms = self.snapshot.data[
             self.snapshot.data["startype"].isin([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
@@ -152,7 +167,7 @@ class Kinematics:
         # inner 100 arcsec only
         rad_lim = (100 * u.arcsec).to(u.pc).value
 
-        # select only stars with 16 < V < 17.5
+        # select only stars with 16 < V < 17.5 # VHB2019
         ms = ms[ms["obsMag_V"] < 17.5]
         ms = ms[ms["obsMag_V"] > 16.0]
         ms = ms[ms["d[PC]"] < rad_lim]
@@ -182,6 +197,28 @@ class Kinematics:
         return bin_centers, sigma_r, delta_sigma_r, sigma_t, delta_sigma_t, mean_mass
 
     def gaia_PMs(self, stars_per_bin=120):
+        """
+        Simulate proper motion measurements with Gaia-like performance.
+        (performance details from VHB2019 and https://www.cosmos.esa.int/web/gaia/earlydr3)
+
+        Parameters
+        ----------
+        stars_per_bin : int
+            Number of stars per bin. Default is 120 (more is generally better).
+
+        Returns
+        -------
+        bin_centers : array_like
+            Array of bin centers.
+        sigma_r : array_like
+            Array of velocity dispersions in the radial direction.
+        delta_sigma_r : array_like
+            Array of velocity dispersion uncertainties in the radial direction.
+        sigma_t : array_like
+            Array of velocity dispersions in the tangential direction.
+        delta_sigma_t : array_like
+            Array of velocity dispersion uncertainties in the tangential direction.
+        """
         # select MS stars
 
         ms = self.snapshot.data[
@@ -189,7 +226,7 @@ class Kinematics:
         ]
         print("number of stars = ", len(ms))
 
-        # select based on G mag
+        # select based on G mag, 17 from VHB+2019
         ms = ms[ms["obsMag_GaiaG"] < 17]
         ms = ms[ms["obsMag_GaiaG"] > 3]
         print("number of stars = ", len(ms))
@@ -237,14 +274,31 @@ class Kinematics:
 
         return bin_centers, sigma_r, delta_sigma_r, sigma_t, delta_sigma_t, mean_mass
 
-    def LOS_dispersion(self, stars_per_bin=70):
+    def LOS_dispersion(self, stars_per_bin=25):
+        """
+        Simulate LOS velocity dispersion measurements with performance based on VHB+2019.
+
+        Parameters
+        ----------
+        stars_per_bin : int
+            Number of stars per bin. Default is 25 (more is generally better).
+
+        Returns
+        -------
+        bin_centers : array_like
+            Array of bin centers.
+        sigma : array_like
+            Array of velocity dispersions.
+        delta_sigma : array_like
+            Array of velocity dispersion uncertainties.
+        """
 
         # select only red giants
         giants = self.snapshot.data[self.snapshot.data["startype"] == 3]
 
         print("number of giants", len(giants))
 
-        # select only stars with V < 15
+        # select only stars with V < 15 VHB+2019
         giants = giants[giants["obsMag_V"] < 15]
 
         print("number of giants", len(giants))
@@ -264,7 +318,24 @@ class Kinematics:
         mean_mass = np.mean(giants["m[MSUN]"])
         return bin_centers, sigma, delta_sigma, mean_mass
 
-    def number_density(self):
+    def number_density(self, Nbins=50):
+        """
+        Simulate number density measurements with performance based on de Boer+2019.
+
+        Parameters
+        ----------
+        Nbins : int
+            Number of bins. Default is 50 (less may be prefferable for undersampled clusters)
+
+        Returns
+        -------
+        bin_centers : array_like
+            Array of bin centers.
+        number_density : array_like
+            Array of number densities.
+        delta_number_density : array_like
+            Array of number density uncertainties.
+        """
 
         # select main sequence stars
         ms = self.snapshot.data[
@@ -272,11 +343,10 @@ class Kinematics:
         ]
         print("number of stars = ", len(ms))
 
-        # select stars brighter than V 17
-        ms = ms[ms["obsMag_V"] < 17]
+        # select stars brighter than G 20, de Boer+2019
+        ms = ms[ms["obsMag_GaiaG"] < 20]
         print("number of stars = ", len(ms))
 
-        Nbins = 50
         # calculate number of stars per bin given total bins
         stars_per_bin = len(ms) / Nbins
 

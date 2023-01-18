@@ -1,4 +1,4 @@
-from cmc_obs import kinematics
+from cmc_obs import observations
 from cmcbrowser import CMCBrowser
 import pytest
 
@@ -14,12 +14,12 @@ def snapshot():
 
 
 @pytest.fixture
-def kinematics_object(snapshot):
-    return kinematics.Kinematics(snapshot=snapshot)
+def observations_object(snapshot):
+    return observations.Observations(snapshot=snapshot)
 
 
-def test_LOS(kinematics_object):
-    bin_centers, sigmas, delta_sigmas, mean_mass = kinematics_object.LOS_dispersion()
+def test_LOS(observations_object):
+    bin_centers, sigmas, delta_sigmas, mean_mass = observations_object.LOS_dispersion()
 
     assert all(sigmas > 0)
     assert all(sigmas < 30)
@@ -28,8 +28,7 @@ def test_LOS(kinematics_object):
     assert len(bin_centers) == len(sigmas)
 
 
-
-def test_HubblePM(kinematics_object):
+def test_HubblePM(observations_object):
     (
         bin_centers,
         sigma_r,
@@ -37,7 +36,7 @@ def test_HubblePM(kinematics_object):
         sigma_t,
         delta_sigma_t,
         mean_mass,
-    ) = kinematics_object.hubble_PMs()
+    ) = observations_object.hubble_PMs()
 
     assert all(sigma_r > 0)
     assert all(sigma_r < 30)
@@ -50,7 +49,7 @@ def test_HubblePM(kinematics_object):
     assert len(bin_centers) == len(sigma_r)
 
 
-def test_GaiaPM(kinematics_object):
+def test_GaiaPM(observations_object):
     (
         bin_centers,
         sigma_r,
@@ -58,7 +57,7 @@ def test_GaiaPM(kinematics_object):
         sigma_t,
         delta_sigma_t,
         mean_mass,
-    ) = kinematics_object.gaia_PMs()
+    ) = observations_object.gaia_PMs()
 
     assert all(sigma_r > 0)
     assert all(sigma_r < 30)
@@ -71,16 +70,19 @@ def test_GaiaPM(kinematics_object):
     assert len(bin_centers) == len(sigma_r)
 
 
-def test_number_density(kinematics_object):
+def test_number_density(observations_object):
 
     (
         bin_centers,
         number_density,
         delta_number_density,
-    ) = kinematics_object.number_density()
+        mean_mass,
+    ) = observations_object.number_density()
 
     assert all(number_density > 0)
     assert all(delta_number_density > 0)
     assert all(bin_centers > 0)
+
+    assert mean_mass > 0
 
     assert len(bin_centers) == len(number_density)
