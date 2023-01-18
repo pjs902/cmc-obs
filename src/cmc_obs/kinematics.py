@@ -285,8 +285,6 @@ class Kinematics:
         number_density = np.zeros(Nbins)
         delta_number_density = np.zeros(Nbins)
 
-        bin_edges = []
-
         # loop over bins
         for i in range(Nbins):
             # select stars in bin
@@ -295,9 +293,6 @@ class Kinematics:
             # get edges of bin
             bin_min = np.min(bin["d[PC]"])
             bin_max = np.max(bin["d[PC]"])
-
-            bin_edges.append(bin_min)
-            bin_edges.append(bin_max)
 
             # get center of bin
             bin_centers[i] = (bin_max + bin_min) / 2
@@ -311,4 +306,4 @@ class Kinematics:
                 np.pi * (bin_max**2 - bin_min**2)
             )
 
-        return bin_centers, number_density, delta_number_density, bin_edges
+        return bin_centers, number_density, delta_number_density
