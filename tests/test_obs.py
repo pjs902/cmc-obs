@@ -8,7 +8,7 @@ def snapshot():
     browser = CMCBrowser()
 
     browser.load_snapshot(
-        model_name="N4e5_rv1_rg8_Z0.02", ss_name="initial.snap0147.dat.gz", distance=4.0
+        model_name="N4e5_rv1_rg8_Z0.02", ss_name="initial.snap0147.dat.gz", distance=5.0
     )
     return browser.loaded_snapshots["N4e5_rv1_rg8_Z0.02/initial.snap0147.dat.gz"]
 
