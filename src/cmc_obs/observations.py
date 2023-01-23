@@ -148,7 +148,7 @@ class Observations:
         Returns
         -------
         bin_centers : array_like
-            Array of bin centers.
+            Array of bin centers, units of pc.
         sigma_r : array_like
             Array of velocity dispersions in the radial direction.
         delta_sigma_r : array_like
@@ -209,15 +209,15 @@ class Observations:
         Returns
         -------
         bin_centers : array_like
-            Array of bin centers.
+            Array of bin centers, units of pc.
         sigma_r : array_like
-            Array of velocity dispersions in the radial direction.
+            Array of velocity dispersions in the radial direction, units of mas/yr.
         delta_sigma_r : array_like
-            Array of velocity dispersion uncertainties in the radial direction.
+            Array of velocity dispersion uncertainties in the radial direction, units of mas/yr.
         sigma_t : array_like
-            Array of velocity dispersions in the tangential direction.
+            Array of velocity dispersions in the tangential direction, units of mas/yr.
         delta_sigma_t : array_like
-            Array of velocity dispersion uncertainties in the tangential direction.
+            Array of velocity dispersion uncertainties in the tangential direction, units of mas/yr.
         """
         # select MS stars
 
@@ -272,6 +272,12 @@ class Observations:
         # get mean mass for this profile
         mean_mass = np.mean(ms["m[MSUN]"])
 
+        # convert to mas/yr
+        sigma_r = (sigma_r * u.km / u.s).to(u.mas / u.yr).value
+        delta_sigma_r = (delta_sigma_r * u.km / u.s).to(u.mas / u.yr).value
+        sigma_t = (sigma_t * u.km / u.s).to(u.mas / u.yr).value
+        delta_sigma_t = (delta_sigma_t * u.km / u.s).to(u.mas / u.yr).value
+
         return bin_centers, sigma_r, delta_sigma_r, sigma_t, delta_sigma_t, mean_mass
 
     def LOS_dispersion(self, stars_per_bin=25):
@@ -286,11 +292,11 @@ class Observations:
         Returns
         -------
         bin_centers : array_like
-            Array of bin centers.
+            Array of bin centers, units of pc.
         sigma : array_like
-            Array of velocity dispersions.
+            Array of velocity dispersions, units of km/s.
         delta_sigma : array_like
-            Array of velocity dispersion uncertainties.
+            Array of velocity dispersion uncertainties, units of km/s.
         """
 
         # select only red giants
@@ -330,11 +336,11 @@ class Observations:
         Returns
         -------
         bin_centers : array_like
-            Array of bin centers.
+            Array of bin centers, units of pc.
         number_density : array_like
-            Array of number densities.
+            Array of number densities, units of arcmin^-2.
         delta_number_density : array_like
-            Array of number density uncertainties.
+            Array of number density uncertainties, units of arcmin^-2.
         """
 
         # select main sequence stars
@@ -378,5 +384,12 @@ class Observations:
 
         # get mean mass for this profile
         mean_mass = np.mean(ms["m[MSUN]"])
+
+        # convert from linear units to angular units
+        number_density *= u.Unit("pc^-2")
+        delta_number_density *= u.Unit("pc^-2")
+
+        number_density = number_density.to(u.Unit("arcmin^-2")).value
+        delta_number_density = delta_number_density.to(u.Unit("arcmin^-2")).value
 
         return bin_centers, number_density, delta_number_density, mean_mass
