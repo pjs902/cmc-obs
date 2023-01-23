@@ -194,7 +194,46 @@ class Observations:
         # get mean mass for these profiles
         mean_mass = np.mean(ms["m[MSUN]"])
 
+        # convert to mas/yr
+        sigma_r = (sigma_r * u.km / u.s).to(u.mas / u.yr).value
+        delta_sigma_r = (delta_sigma_r * u.km / u.s).to(u.mas / u.yr).value
+        sigma_t = (sigma_t * u.km / u.s).to(u.mas / u.yr).value
+        delta_sigma_t = (delta_sigma_t * u.km / u.s).to(u.mas / u.yr).value
+
         return bin_centers, sigma_r, delta_sigma_r, sigma_t, delta_sigma_t, mean_mass
+
+    def gaia_err_func(self, G):
+        """
+        Get approximate errors for Gaia DR3 astrometric measurements.
+        Uses average of RA and dec uncertainties from Table 4 of
+        # https://www.aanda.org/articles/aa/abs/2021/05/aa39709-20/aa39709-20.html
+
+        Parameters
+        ----------
+        G : float
+            Gaia G-band magnitude.
+
+        Returns
+        -------
+        err : float
+            Error in mas/yr.
+        """
+
+        mags = np.linspace(12, 21, 10)
+        errs = [
+            0.017,
+            0.015,
+            0.018,
+            0.026,
+            0.041,
+            0.067,
+            0.117,
+            0.2185,
+            0.4575,
+            1.423,
+        ]
+        # return interpolated error, filling in left and right edges with 0.017 and 1.423 respectively.
+        return np.interp(G, mags, errs)
 
     def gaia_PMs(self, stars_per_bin=120):
         """
@@ -231,25 +270,7 @@ class Observations:
         ms = ms[ms["obsMag_GaiaG"] > 3]
         print("number of stars = ", len(ms))
 
-        # proper motion uncertainties are
-        # 0.02-0.03 mas/yr for G<15,
-        #  0.07 mas/yr at G=17,
-        #  0.5 mas/yr at G=20,
-        #  and 1.4 mas/yr at G=21 mag."
-
-        # function to calculate error based on G mag
-        def err_func(G):
-            # TODO: make this smooth?
-            if G < 15:
-                return 0.02
-            elif G < 17:
-                return 0.07
-            elif G < 20:
-                return 0.5
-            else:
-                return 1.4
-
-        err = np.array([err_func(G) for G in ms["obsMag_GaiaG"]])
+        err = np.array([self.gaia_err_func(G) for G in ms["obsMag_GaiaG"]])
 
         # convert to km/s
         errs = (err * u.Unit("mas/yr")).to(u.km / u.s).value
