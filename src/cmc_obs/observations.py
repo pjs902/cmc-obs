@@ -1,10 +1,12 @@
 import numpy as np
+import scipy as sp
 from scipy.optimize import fsolve
 from tqdm import trange
 from fitter.util import angular_width
 import astropy.units as u
 import cmctoolkit as ck
 import logging
+import ezmist
 
 
 def comp_veldisp(vi, ei):
@@ -123,14 +125,67 @@ class Observations:
     def __init__(
         self, snapshot, filtindex="/home/peter/research/cmctoolkit/filt_index.txt"
     ):
-        """ """
+        """
+        Initialize an Observations object.
+
+        Parameters
+        ----------
+        snapshot : Snapshot
+            Snapshot object.
+        filtindex : str
+            Path to filter index file.
+        """
+
+        # load snapshot
         self.snapshot = snapshot
+
+        # make 2d projection
         self.snapshot.make_2d_projection()
+
+        # set distance
         self.dist = snapshot.dist
         u.set_enabled_equivalencies(angular_width(D=self.dist * u.kpc))
 
+        # add photometry
         filttable = ck.load_filtertable(filtindex)
         self.snapshot.add_photometry(filttable)
+
+        # get isochrone
+        self.isochrone = ezmist.get_one_isochrone(
+            age=self.snapshot.age * 1e9,
+            FeH=np.log10(self.snapshot.z / 0.02),
+            v_div_vcrit=0.0,
+            age_scale="linear",
+            output_option="photometry",
+            output="HST_WFC3",
+        ).to_pandas()[
+            0:200
+        ]  # TODO: this is a hack, stop at MSTO
+
+        lum_to_mass = sp.interpolate.interp1d(
+            x=self.isochrone.WFC3_UVIS_F814W, y=self.isochrone.star_mass, kind="linear"
+        )
+
+        # add inferred masses to main-sequence stars, nan otherwise
+        self.snapshot.data["inferred_mass"] = np.nan
+
+        # get upper and lower mass limits of isochrone
+        min_mass = np.min(self.isochrone.star_mass)
+        max_mass = np.max(self.isochrone.star_mass)
+
+        # get main-sequence stars
+        ms_mask = self.snapshot.data["startype"].isin([0, 1])
+
+        # filter based on mass limits
+        ms_mask = ms_mask & (self.snapshot.data["m[MSUN]"] < max_mass)
+        ms_mask = ms_mask & (self.snapshot.data["m[MSUN]"] > min_mass)
+
+        self.ms_mask = ms_mask
+
+        # add inferred masses to main-sequence stars
+        self.snapshot.data.loc[ms_mask, "inferred_mass"] = lum_to_mass(
+            self.snapshot.data.loc[ms_mask, "absMag_WFC3F814W"]
+        )
 
         # sort by projected distance
         self.snapshot.data = self.snapshot.data.sort_values(by="d[PC]")
