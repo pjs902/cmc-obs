@@ -15,6 +15,20 @@ def comp_veldisp(vi, ei):
     Compute velocity dispersion and uncertainty using maximum-likelihood method
     outlined in https://articles.adsabs.harvard.edu/pdf/1993sdgc.proc..357P
     Assumes a gaussian velocity dispersion.
+
+    Parameters
+    ----------
+    vi : array_like
+        Array of velocities.
+    ei : array_like
+        Array of velocity uncertainties.
+
+    Returns
+    -------
+    sigma_c : float
+        Velocity dispersion.
+    error_sigma_c : float
+        Velocity dispersion uncertainty.
     """
 
     def func(x):
@@ -408,21 +422,21 @@ class Observations:
         # loop over bins
         for i in range(Nbins):
             # select stars in bin
-            bin = stars[int(i * stars_per_bin) : int((i + 1) * stars_per_bin)]
+            sel = stars[int(i * stars_per_bin) : int((i + 1) * stars_per_bin)]
 
             # get edges of bin
-            bin_min = np.min(bin["d[PC]"])
-            bin_max = np.max(bin["d[PC]"])
+            bin_min = np.min(sel["d[PC]"])
+            bin_max = np.max(sel["d[PC]"])
 
             # get center of bin
             bin_centers[i] = (bin_max + bin_min) / 2
-            bin_centers[i] = np.mean(bin["d[PC]"])
+            bin_centers[i] = np.mean(sel["d[PC]"])
 
             # calculate surface number density, in current annulus
-            number_density[i] = len(bin) / (np.pi * (bin_max**2 - bin_min**2))
+            number_density[i] = len(sel) / (np.pi * (bin_max**2 - bin_min**2))
 
             # calculate error
-            delta_number_density[i] = np.sqrt(len(bin)) / (
+            delta_number_density[i] = np.sqrt(len(sel)) / (
                 np.pi * (bin_max**2 - bin_min**2)
             )
 
@@ -484,7 +498,7 @@ class Observations:
             centers = [(edges[i] + edges[i + 1]) / 2 for i in range(len(edges) - 1)]
             err = np.sqrt(heights)
 
-        return centers, heights, err
+        return np.array(centers), heights, err
 
 
 def gaia_err_func(G):
