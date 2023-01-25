@@ -159,19 +159,19 @@ class Observations:
             Array of velocity dispersion uncertainties in the tangential direction.
         """
 
-        ms = self.snapshot.data[
+        stars = self.snapshot.data[
             self.snapshot.data["startype"].isin([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
         ]
-        print("number of stars = ", len(ms))
+        print("number of stars = ", len(stars))
 
         # inner 100 arcsec only
         rad_lim = (100 * u.arcsec).to(u.pc).value
 
         # select only stars with 16 < V < 17.5 # VHB2019
-        ms = ms[ms["obsMag_V"] < 17.5]
-        ms = ms[ms["obsMag_V"] > 16.0]
-        ms = ms[ms["d[PC]"] < rad_lim]
-        print("number of stars = ", len(ms))
+        stars = stars[stars["obsMag_V"] < 17.5]
+        stars = stars[stars["obsMag_V"] > 16.0]
+        stars = stars[stars["d[PC]"] < rad_lim]
+        print("number of stars = ", len(stars))
 
         # uncertainty of 0.1 mas/yr
         err = (0.1 * u.Unit("mas/yr")).to(u.km / u.s)
@@ -179,20 +179,20 @@ class Observations:
 
         # build profiles
         bin_centers, sigma_r, delta_sigma_r = veldisp_profile(
-            x=ms["d[PC]"].values,
-            vi=ms["vd[KM/S]"].values,
+            x=stars["d[PC]"].values,
+            vi=stars["vd[KM/S]"].values,
             ei=errs,
             stars_per_bin=stars_per_bin,
         )
 
         bin_centers, sigma_t, delta_sigma_t = veldisp_profile(
-            x=ms["d[PC]"].values,
-            vi=ms["va[KM/S]"].values,
+            x=stars["d[PC]"].values,
+            vi=stars["va[KM/S]"].values,
             ei=errs,
             stars_per_bin=stars_per_bin,
         )
         # get mean mass for these profiles
-        mean_mass = np.mean(ms["m[MSUN]"])
+        mean_mass = np.mean(stars["m[MSUN]"])
 
         # convert to mas/yr
         sigma_r = (sigma_r * u.km / u.s).to(u.mas / u.yr).value
@@ -201,39 +201,6 @@ class Observations:
         delta_sigma_t = (delta_sigma_t * u.km / u.s).to(u.mas / u.yr).value
 
         return bin_centers, sigma_r, delta_sigma_r, sigma_t, delta_sigma_t, mean_mass
-
-    def gaia_err_func(self, G):
-        """
-        Get approximate errors for Gaia DR3 astrometric measurements.
-        Uses average of RA and dec uncertainties from Table 4 of
-        # https://www.aanda.org/articles/aa/abs/2021/05/aa39709-20/aa39709-20.html
-
-        Parameters
-        ----------
-        G : float
-            Gaia G-band magnitude.
-
-        Returns
-        -------
-        err : float
-            Error in mas/yr.
-        """
-
-        mags = np.linspace(12, 21, 10)
-        errs = [
-            0.017,
-            0.015,
-            0.018,
-            0.026,
-            0.041,
-            0.067,
-            0.117,
-            0.2185,
-            0.4575,
-            1.423,
-        ]
-        # return interpolated error, filling in left and right edges with 0.017 and 1.423 respectively.
-        return np.interp(G, mags, errs)
 
     def gaia_PMs(self, stars_per_bin=120):
         """
@@ -260,38 +227,38 @@ class Observations:
         """
         # select MS stars
 
-        ms = self.snapshot.data[
+        stars = self.snapshot.data[
             self.snapshot.data["startype"].isin([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
         ]
-        print("number of stars = ", len(ms))
+        print("number of stars = ", len(stars))
 
         # select based on G mag, 17 from VHB+2019
-        ms = ms[ms["obsMag_GaiaG"] < 17]
-        ms = ms[ms["obsMag_GaiaG"] > 3]
-        print("number of stars = ", len(ms))
+        stars = stars[stars["obsMag_GaiaG"] < 17]
+        stars = stars[stars["obsMag_GaiaG"] > 3]
+        print("number of stars = ", len(stars))
 
-        err = np.array([self.gaia_err_func(G) for G in ms["obsMag_GaiaG"]])
+        err = np.array([gaia_err_func(G) for G in stars["obsMag_GaiaG"]])
 
         # convert to km/s
         errs = (err * u.Unit("mas/yr")).to(u.km / u.s).value
 
         # build profiles
         bin_centers, sigma_r, delta_sigma_r = veldisp_profile(
-            x=ms["d[PC]"].values,
-            vi=ms["vd[KM/S]"].values,
+            x=stars["d[PC]"].values,
+            vi=stars["vd[KM/S]"].values,
             ei=errs,
             stars_per_bin=stars_per_bin,
         )
 
         bin_centers, sigma_t, delta_sigma_t = veldisp_profile(
-            x=ms["d[PC]"].values,
-            vi=ms["va[KM/S]"].values,
+            x=stars["d[PC]"].values,
+            vi=stars["va[KM/S]"].values,
             ei=errs,
             stars_per_bin=stars_per_bin,
         )
 
         # get mean mass for this profile
-        mean_mass = np.mean(ms["m[MSUN]"])
+        mean_mass = np.mean(stars["m[MSUN]"])
 
         # convert to mas/yr
         sigma_r = (sigma_r * u.km / u.s).to(u.mas / u.yr).value
@@ -365,17 +332,17 @@ class Observations:
         """
 
         # select main sequence stars
-        ms = self.snapshot.data[
+        stars = self.snapshot.data[
             self.snapshot.data["startype"].isin([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
         ]
-        print("number of stars = ", len(ms))
+        print("number of stars = ", len(stars))
 
         # select stars brighter than G 20, de Boer+2019
-        ms = ms[ms["obsMag_GaiaG"] < 20]
-        print("number of stars = ", len(ms))
+        stars = stars[stars["obsMag_GaiaG"] < 20]
+        print("number of stars = ", len(stars))
 
         # calculate number of stars per bin given total bins
-        stars_per_bin = len(ms) / Nbins
+        stars_per_bin = len(stars) / Nbins
 
         # initialize arrays
         bin_centers = np.zeros(Nbins)
@@ -385,7 +352,7 @@ class Observations:
         # loop over bins
         for i in range(Nbins):
             # select stars in bin
-            bin = ms[int(i * stars_per_bin) : int((i + 1) * stars_per_bin)]
+            bin = stars[int(i * stars_per_bin) : int((i + 1) * stars_per_bin)]
 
             # get edges of bin
             bin_min = np.min(bin["d[PC]"])
@@ -404,7 +371,7 @@ class Observations:
             )
 
         # get mean mass for this profile
-        mean_mass = np.mean(ms["m[MSUN]"])
+        mean_mass = np.mean(stars["m[MSUN]"])
 
         # convert from linear units to angular units
         number_density *= u.Unit("pc^-2")
@@ -414,3 +381,85 @@ class Observations:
         delta_number_density = delta_number_density.to(u.Unit("arcmin^-2")).value
 
         return bin_centers, number_density, delta_number_density, mean_mass
+
+    def mass_function(self, r_in, r_out, inferred_mass=False, bins=10):
+        """
+        Extract the mass function in a given annulus.
+
+        Parameters
+        ----------
+        r_in : float
+            Inner radius of annulus, units of arcmin.
+        r_out : float
+            Outer radius of annulus, units of arcmin.
+        observed_mass : bool (optional)
+            If True, use observed masses based on a MIST isochrone. If False, use
+            true masses. Default is False.
+        bins : int (optional)
+            Number of bins to use for mass function. Default is 10.
+
+        Returns
+        -------
+        bin_centers : array_like
+            Array of bin centers, units of Msun.
+        mass_function : array_like
+            Array of mass function, units of Msun^-1.
+        delta_mass_function : array_like
+            Array of mass function uncertainties, units of Msun^-1.
+        """
+
+        # convert radii to pc
+        r_in = (r_in * u.arcmin).to(u.pc).value
+        r_out = (r_out * u.arcmin).to(u.pc).value
+
+        # select main sequence stars, using ms mask
+        sel = self.snapshot.data.loc[self.ms_mask]
+
+        # select stars in annulus
+        sel = sel[(sel["d[PC]"] > r_in) & (sel["d[PC]"] < r_out)]
+
+        # calculate mass function
+        if inferred_mass:
+            heights, edges = np.histogram(a=sel["inferred_mass"], bins=bins)
+            centers = [(edges[i] + edges[i + 1]) / 2 for i in range(len(edges) - 1)]
+            err = np.sqrt(heights)
+        else:
+            heights, edges = np.histogram(a=sel["m[MSUN]"], bins=bins)
+            centers = [(edges[i] + edges[i + 1]) / 2 for i in range(len(edges) - 1)]
+            err = np.sqrt(heights)
+
+        return centers, heights, err
+
+
+def gaia_err_func(G):
+    """
+    Get approximate errors for Gaia DR3 astrometric measurements.
+    Uses average of RA and dec uncertainties from Table 4 of
+    # https://www.aanda.org/articles/aa/abs/2021/05/aa39709-20/aa39709-20.html
+
+    Parameters
+    ----------
+    G : float
+        Gaia G-band magnitude.
+
+    Returns
+    -------
+    err : float
+        Error in mas/yr.
+    """
+
+    mags = np.linspace(12, 21, 10)
+    errs = [
+        0.017,
+        0.015,
+        0.018,
+        0.026,
+        0.041,
+        0.067,
+        0.117,
+        0.2185,
+        0.4575,
+        1.423,
+    ]
+    # return interpolated error, filling in left and right edges with 0.017 and 1.423 respectively.
+    return np.interp(G, mags, errs)
