@@ -184,7 +184,7 @@ class Observations:
 
         # add inferred masses to main-sequence stars
         self.snapshot.data.loc[ms_mask, "inferred_mass"] = lum_to_mass(
-            self.snapshot.data.loc[ms_mask, "absMag_WFC3F814W"]
+            self.snapshot.data.loc[ms_mask, "tot_absMag_WFC3F814W"]
         )
 
         # sort by projected distance
@@ -223,8 +223,8 @@ class Observations:
         rad_lim = (100 * u.arcsec).to(u.pc).value
 
         # select only stars with 16 < V < 17.5 # VHB2019
-        stars = stars[stars["obsMag_V"] < 17.5]
-        stars = stars[stars["obsMag_V"] > 16.0]
+        stars = stars[stars["tot_obsMag_V"] < 17.5]
+        stars = stars[stars["tot_obsMag_V"] > 16.0]
         stars = stars[stars["d[PC]"] < rad_lim]
         print("number of stars = ", len(stars))
 
@@ -288,11 +288,11 @@ class Observations:
         print("number of stars = ", len(stars))
 
         # select based on G mag, 17 from VHB+2019
-        stars = stars[stars["obsMag_GaiaG"] < 17]
-        stars = stars[stars["obsMag_GaiaG"] > 3]
+        stars = stars[stars["tot_obsMag_GaiaG"] < 17]
+        stars = stars[stars["tot_obsMag_GaiaG"] > 3]
         print("number of stars = ", len(stars))
 
-        err = np.array([gaia_err_func(G) for G in stars["obsMag_GaiaG"]])
+        err = np.array([gaia_err_func(G) for G in stars["tot_obsMag_GaiaG"]])
 
         # convert to km/s
         errs = (err * u.Unit("mas/yr")).to(u.km / u.s).value
@@ -348,6 +348,7 @@ class Observations:
         print("number of giants", len(giants))
 
         # select only stars with V < 15 VHB+2019
+        # TODO: filter short period binaries here?
         giants = giants[giants["obsMag_V"] < 15]
 
         print("number of giants", len(giants))
@@ -393,7 +394,7 @@ class Observations:
         print("number of stars = ", len(stars))
 
         # select stars brighter than G 20, de Boer+2019
-        stars = stars[stars["obsMag_GaiaG"] < 20]
+        stars = stars[stars["tot_obsMag_GaiaG"] < 20]
         print("number of stars = ", len(stars))
 
         # calculate number of stars per bin given total bins
