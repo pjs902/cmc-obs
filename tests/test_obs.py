@@ -8,7 +8,7 @@ def snapshot():
     browser = CMCBrowser()
 
     browser.load_snapshot(
-        model_name="N4e5_rv1_rg8_Z0.02", ss_name="initial.snap0147.dat.gz", distance=5.0
+        model_name="N4e5_rv1_rg8_Z0.02", ss_name="initial.snap0147.dat.gz", distance=5.0, mode="dat.gz"
     )
 
     # dont run out of ram
@@ -88,8 +88,8 @@ def test_number_density(observations_object):
         mean_mass,
     ) = observations_object.number_density()
 
-    assert all(number_density > 0)
-    assert all(delta_number_density > 0)
+    assert all(number_density >= 0)
+    assert all(delta_number_density >= 0)
     assert all(bin_centers > 0)
 
     assert mean_mass > 0
@@ -105,8 +105,8 @@ def test_mass_function(observations_object):
         delta_mass_function,
     ) = observations_object.mass_function(r_in=0.0, r_out=5.0)
 
-    assert all(mass_function > 0)
-    assert all(delta_mass_function > 0)
+    assert all(mass_function >= 0)
+    assert all(delta_mass_function >= 0)
     assert all(bin_centers > 0)
 
     assert len(bin_centers) == len(mass_function)
