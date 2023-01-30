@@ -197,7 +197,11 @@ class Observations:
             max_mass = np.max(self.isochrone.star_mass)
 
         # get main-sequence stars
-        ms_mask = self.snapshot.data["startype"].isin([0, 1])
+        ms_mask = (
+            (self.snapshot.data["startype"].isin([0, 1]))
+            | (self.snapshot.data["bin_startype0"].isin([0, 1]))
+            | (self.snapshot.data["bin_startype1"].isin([0, 1]))
+        )
 
         # filter based on mass limits, if add_inferred_masses is True
         if add_inferred_masses:
@@ -242,8 +246,10 @@ class Observations:
             Array of velocity dispersion uncertainties in the tangential direction.
         """
 
-        stars = self.snapshot.data[
-            self.snapshot.data["startype"].isin([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+        stars = self.snapshot.data.loc[
+            (self.snapshot.data["startype"].isin(self.startypes))
+            | (self.snapshot.data["bin_startype0"].isin(self.startypes))
+            | (self.snapshot.data["bin_startype1"].isin(self.startypes))
         ]
         print("number of stars = ", len(stars))
 
@@ -312,14 +318,17 @@ class Observations:
         """
         # select MS stars
 
-        stars = self.snapshot.data[
-            self.snapshot.data["startype"].isin([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+        stars = self.snapshot.data.loc[
+            (self.snapshot.data["startype"].isin(self.startypes))
+            | (self.snapshot.data["bin_startype0"].isin(self.startypes))
+            | (self.snapshot.data["bin_startype1"].isin(self.startypes))
         ]
         print("number of stars = ", len(stars))
 
         # select based on G mag, 17 from VHB+2019
-        stars = stars[stars["tot_obsMag_GaiaG"] < 17]
-        stars = stars[stars["tot_obsMag_GaiaG"] > 3]
+        stars = stars.loc[
+            (stars["tot_obsMag_GaiaG"] < 17) & (stars["tot_obsMag_GaiaG"] > 3)
+        ]
         print("number of stars = ", len(stars))
 
         err = np.array([gaia_err_func(G) for G in stars["tot_obsMag_GaiaG"]])
@@ -373,13 +382,17 @@ class Observations:
         """
 
         # select only red giants
-        giants = self.snapshot.data[self.snapshot.data["startype"] == 3]
+        giants = self.snapshot.data.loc[
+            (self.snapshot.data["startype"] == 3)
+            | (self.snapshot.data["bin_startype0"] == 3)
+            | (self.snapshot.data["bin_startype1"] == 3)
+        ]
 
         print("number of giants", len(giants))
 
         # select only stars with V < 15 VHB+2019
         # TODO: filter short period binaries here?
-        giants = giants[giants["obsMag_V"] < 15]
+        giants = giants.loc[giants["obsMag_V"] < 15]
 
         print("number of giants", len(giants))
 
@@ -418,13 +431,15 @@ class Observations:
         """
 
         # select main sequence stars
-        stars = self.snapshot.data[
-            self.snapshot.data["startype"].isin([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+        stars = self.snapshot.data.loc[
+            (self.snapshot.data["startype"].isin(self.startypes))
+            | (self.snapshot.data["bin_startype0"].isin(self.startypes))
+            | (self.snapshot.data["bin_startype1"].isin(self.startypes))
         ]
         print("number of stars = ", len(stars))
 
         # select stars brighter than G 20, de Boer+2019
-        stars = stars[stars["tot_obsMag_GaiaG"] < 20]
+        stars = stars.loc[stars["tot_obsMag_GaiaG"] < 20]
         print("number of stars = ", len(stars))
 
         # calculate number of stars per bin given total bins
@@ -511,7 +526,7 @@ class Observations:
         sel = self.snapshot.data.loc[self.ms_mask]
 
         # select stars in annulus
-        sel = sel[(sel["d[PC]"] > r_in) & (sel["d[PC]"] < r_out)]
+        sel = sel.loc[(sel["d[PC]"] > r_in) & (sel["d[PC]"] < r_out)]
 
         # calculate mass function
         if inferred_mass:
