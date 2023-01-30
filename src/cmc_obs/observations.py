@@ -137,7 +137,10 @@ class Observations:
     """
 
     def __init__(
-        self, snapshot, filtindex="/home/peter/research/cmctoolkit/filt_index.txt"
+        self,
+        snapshot,
+        filtindex="/home/peter/research/cmctoolkit/filt_index.txt",
+        add_inferred_masses=False,
     ):
         """
         Initialize an Observations object.
@@ -164,42 +167,53 @@ class Observations:
         filttable = ck.load_filtertable(filtindex)
         self.snapshot.add_photometry(filttable)
 
-        # get isochrone
-        self.isochrone = ezmist.get_one_isochrone(
-            age=self.snapshot.age * 1e9,
-            FeH=np.log10(self.snapshot.z / 0.02),
-            v_div_vcrit=0.0,
-            age_scale="linear",
-            output_option="photometry",
-            output="HST_WFC3",
-        ).to_pandas()[
-            0:200
-        ]  # TODO: this is a hack, stop at MSTO
+        # set inferred masses flag
+        self.add_inferred_masses = add_inferred_masses
 
-        lum_to_mass = sp.interpolate.interp1d(
-            x=self.isochrone.WFC3_UVIS_F814W, y=self.isochrone.star_mass, kind="linear"
-        )
+        # get isochrone, if add_inferred_masses is True
+        if add_inferred_masses:
+            self.isochrone = ezmist.get_one_isochrone(
+                age=self.snapshot.age * 1e9,
+                FeH=np.log10(self.snapshot.z / 0.02),
+                v_div_vcrit=0.0,
+                age_scale="linear",
+                output_option="photometry",
+                output="HST_WFC3",
+            ).to_pandas()[
+                0:200
+            ]  # TODO: this is a hack, stop at MSTO
 
-        # add inferred masses to main-sequence stars, nan otherwise
-        self.snapshot.data["inferred_mass"] = np.nan
+            lum_to_mass = sp.interpolate.interp1d(
+                x=self.isochrone.WFC3_UVIS_F814W,
+                y=self.isochrone.star_mass,
+                kind="linear",
+            )
 
-        # get upper and lower mass limits of isochrone
-        min_mass = np.min(self.isochrone.star_mass)
-        max_mass = np.max(self.isochrone.star_mass)
+            # add inferred masses to main-sequence stars, nan otherwise
+            self.snapshot.data["inferred_mass"] = np.nan
+
+            # get upper and lower mass limits of isochrone
+            min_mass = np.min(self.isochrone.star_mass)
+            max_mass = np.max(self.isochrone.star_mass)
 
         # get main-sequence stars
         ms_mask = self.snapshot.data["startype"].isin([0, 1])
 
-        # filter based on mass limits
-        ms_mask = ms_mask & (self.snapshot.data["m[MSUN]"] < max_mass)
-        ms_mask = ms_mask & (self.snapshot.data["m[MSUN]"] > min_mass)
+        # filter based on mass limits, if add_inferred_masses is True
+        if add_inferred_masses:
+            ms_mask = ms_mask & (self.snapshot.data["m[MSUN]"] < max_mass)
+            ms_mask = ms_mask & (self.snapshot.data["m[MSUN]"] > min_mass)
 
         self.ms_mask = ms_mask
 
-        # add inferred masses to main-sequence stars
-        self.snapshot.data.loc[ms_mask, "inferred_mass"] = lum_to_mass(
-            self.snapshot.data.loc[ms_mask, "tot_absMag_WFC3F814W"]
-        )
+        # add inferred masses to main-sequence stars, if add_inferred_masses is True
+        if add_inferred_masses:
+            self.snapshot.data.loc[ms_mask, "inferred_mass"] = lum_to_mass(
+                self.snapshot.data.loc[ms_mask, "tot_absMag_WFC3F814W"]
+            )
+
+        # startypes for main-sequence stars and giants
+        self.startypes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
         # sort by projected distance
         self.snapshot.data = self.snapshot.data.sort_values(by="d[PC]")
@@ -237,9 +251,11 @@ class Observations:
         rad_lim = (100 * u.arcsec).to(u.pc).value
 
         # select only stars with 16 < V < 17.5 # VHB2019
-        stars = stars[stars["tot_obsMag_V"] < 17.5]
-        stars = stars[stars["tot_obsMag_V"] > 16.0]
-        stars = stars[stars["d[PC]"] < rad_lim]
+        stars = stars.loc[
+            (stars["tot_obsMag_V"] < 17.5)
+            & (stars["tot_obsMag_V"] > 16.0)
+            & (stars["d[PC]"] < rad_lim)
+        ]
         print("number of stars = ", len(stars))
 
         # uncertainty of 0.1 mas/yr
@@ -464,7 +480,8 @@ class Observations:
             Outer radius of annulus, units of arcmin.
         observed_mass : bool (optional)
             If True, use observed masses based on a MIST isochrone. If False, use
-            true masses. Default is False.
+            true masses. Default is False. Requires that the snapshot has been
+            initialized with `add_inferred_masses=True`.
         bins : int (optional)
             Number of bins to use for mass function. Default is 10.
 
@@ -477,6 +494,14 @@ class Observations:
         delta_mass_function : array_like
             Array of mass function uncertainties, units of Msun^-1.
         """
+
+        # check if inferred masses have been added
+        if inferred_mass:
+            if not self.snapshot.add_inferred_masses:
+                raise ValueError(
+                    "Inferred masses have not been added to snapshot. "
+                    "Initialize snapshot with `add_inferred_masses=True`."
+                )
 
         # convert radii to pc
         r_in = (r_in * u.arcmin).to(u.pc).value
