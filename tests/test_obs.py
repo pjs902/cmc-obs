@@ -8,41 +8,17 @@ def snapshot():
     browser = CMCBrowser()
 
     browser.load_snapshot(
-        model_name="N4e5_rv1_rg8_Z0.02",
-        ss_name="initial.snap0147.dat.gz",
-        distance=5.0,
-        mode="dat.gz",
-    )
-    return browser.loaded_snapshots["N4e5_rv1_rg8_Z0.02/initial.snap0147.dat.gz"]
-
-
-def test_gzip_snapshot():
-
-    browser = CMCBrowser()
-
-    browser.load_snapshot(
-        model_name="N4e5_rv1_rg8_Z0.02",
-        ss_name="initial.snap0147.dat.gz",
-        distance=5.0,
-        mode="dat.gz",
-    )
-
-
-def test_h5_snapshot():
-
-    browser = CMCBrowser()
-
-    browser.load_snapshot(
         model_name="N2e5_rv0.5_rg20_Z0.02",
         ss_name="king.window.snapshots.h5",
         distance=5,
         h5_key="8(t=12.000067Gyr)",
     )
+    return browser.loaded_snapshots["N2e5_rv0.5_rg20_Z0.02/8(t=12.000067Gyr)"]
 
 
 @pytest.fixture
 def observations_object(snapshot):
-    return observations.Observations(snapshot=snapshot)
+    return observations.Observations(snapshot=snapshot, add_inferred_masses=True)
 
 
 def test_LOS(observations_object):
@@ -122,6 +98,21 @@ def test_mass_function(observations_object):
         mass_function,
         delta_mass_function,
     ) = observations_object.mass_function(r_in=0.0, r_out=5.0)
+
+    assert all(mass_function >= 0)
+    assert all(delta_mass_function >= 0)
+    assert all(bin_centers > 0)
+
+    assert len(bin_centers) == len(mass_function)
+
+
+def test_mass_function_inferred(observations_object):
+
+    (
+        bin_centers,
+        mass_function,
+        delta_mass_function,
+    ) = observations_object.mass_function(r_in=0.0, r_out=5.0, inferred_mass=True)
 
     assert all(mass_function >= 0)
     assert all(delta_mass_function >= 0)
