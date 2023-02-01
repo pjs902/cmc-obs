@@ -7,6 +7,8 @@ import astropy.units as u
 import cmctoolkit as ck
 import logging
 import ezmist
+import pandas as pd
+import json
 
 
 def comp_veldisp(vi, ei):
@@ -549,6 +551,170 @@ class Observations:
             err = np.sqrt(heights)
 
         return np.array(centers), heights, err
+
+    def write_obs(self):
+        """
+        Write the simulated observations to a file.
+        """
+
+        # metadata dict to hold thins like masses
+        metadata = {}
+
+        # Hubble PM
+        (
+            bin_centers,
+            sigma_r,
+            delta_sigma_r,
+            sigma_t,
+            delta_sigma_t,
+            mean_mass,
+        ) = self.hubble_PMs()
+
+        # round to 3 decimal places
+        bin_centers = np.round(bin_centers, 3)
+        sigma_r = np.round(sigma_r, 3)
+        delta_sigma_r = np.round(delta_sigma_r, 3)
+        sigma_t = np.round(sigma_t, 3)
+        delta_sigma_t = np.round(delta_sigma_t, 3)
+        mean_mass = np.round(mean_mass, 3)
+
+        # create dataframe
+        df = pd.DataFrame(
+            {
+                "r[arcsec]": bin_centers,
+                "sigma_r[mas/yr]": sigma_r,
+                "delta_sigma_r[mas/yr]": delta_sigma_r,
+                "sigma_t[mas/yr]": sigma_t,
+                "delta_sigma_t[mas/yr]": delta_sigma_t,
+            }
+        )
+        df.to_csv("hubble_pm.csv", index=False, header=True)
+        metadata["hubble_mean_mass"] = mean_mass
+
+        # Gaia PM
+        (
+            bin_centers,
+            sigma_r,
+            delta_sigma_r,
+            sigma_t,
+            delta_sigma_t,
+            mean_mass,
+        ) = self.gaia_PMs()
+
+        # round to 3 decimal places
+        bin_centers = np.round(bin_centers, 3)
+        sigma_r = np.round(sigma_r, 3)
+        delta_sigma_r = np.round(delta_sigma_r, 3)
+        sigma_t = np.round(sigma_t, 3)
+        delta_sigma_t = np.round(delta_sigma_t, 3)
+        mean_mass = np.round(mean_mass, 3)
+
+        # create dataframe
+        df = pd.DataFrame(
+            {
+                "r[arcsec]": bin_centers,
+                "sigma_r[mas/yr]": sigma_r,
+                "delta_sigma_r[mas/yr]": delta_sigma_r,
+                "sigma_t[mas/yr]": sigma_t,
+                "delta_sigma_t[mas/yr]": delta_sigma_t,
+            }
+        )
+        df.to_csv("gaia_pm.csv", index=False, header=True)
+        metadata["gaia_mean_mass"] = mean_mass
+
+        # LOS Dispersion
+        bin_centers, sigmas, delta_sigmas, mean_mass = self.LOS_dispersion()
+
+        # round to 3 decimal places
+        bin_centers = np.round(bin_centers, 3)
+        sigmas = np.round(sigmas, 3)
+        delta_sigmas = np.round(delta_sigmas, 3)
+        mean_mass = np.round(mean_mass, 3)
+
+        # create dataframe
+        df = pd.DataFrame(
+            {
+                "r[arcsec]": bin_centers,
+                "sigma[km/s]": sigmas,
+                "delta_sigma[km/s]": delta_sigmas,
+            }
+        )
+        df.to_csv("los_dispersion.csv", index=False, header=True)
+        metadata["los_mean_mass"] = mean_mass
+
+        # Number Density
+        (
+            bin_centers,
+            number_density,
+            delta_number_density,
+            mean_mass,
+        ) = self.number_density()
+
+        # round to 3 decimal places
+        bin_centers = np.round(bin_centers, 3)
+        number_density = np.round(number_density, 3)
+        delta_number_density = np.round(delta_number_density, 3)
+        mean_mass = np.round(mean_mass, 3)
+
+        df = pd.DataFrame(
+            {
+                "r[arcmin]": bin_centers,
+                "number_density[arcmin^-2]": number_density,
+                "delta_number_density[arcmin^-2]": delta_number_density,
+            }
+        )
+        df.to_csv("number_density.csv", index=False, header=True)
+        metadata["number_mean_mass"] = mean_mass
+
+        # Mass Function
+        annuli = [(0, 0.4), (0.4, 0.8), (0.8, 1.2), (1.2, 1.6), (2, 2.5), (4, 6)]
+
+        r_ins = []
+        r_outs = []
+        mass_bins = []
+        mass_functions = []
+        delta_mass_functions = []
+
+        for i in range(len(annuli)):
+            masses, mass_function, delta_mass_function = self.mass_function(
+                r_in=annuli[i][0], r_out=annuli[i][1], inferred_mass=False
+            )
+            for _ in range(len(masses)):
+                r_ins.append(annuli[i][0])
+                r_outs.append(annuli[i][1])
+            mass_bins.append(masses.flatten())
+            mass_functions.append(mass_function.flatten())
+            delta_mass_functions.append(delta_mass_function.flatten())
+
+        # flatten lists
+        r_ins = np.array(r_ins).flatten()
+        r_outs = np.array(r_outs).flatten()
+        mass_bins = np.array(mass_bins).flatten()
+        mass_functions = np.array(mass_functions).flatten()
+        delta_mass_functions = np.array(delta_mass_functions).flatten()
+
+        # round to 3 decimal places
+        r_ins = np.round(r_ins, 3)
+        r_outs = np.round(r_outs, 3)
+        mass_bins = np.round(mass_bins, 3)
+        mass_functions = np.round(mass_functions, 3)
+        delta_mass_functions = np.round(delta_mass_functions, 3)
+
+        # create dataframe
+        df = pd.DataFrame(
+            {
+                "r_in[arcmin]": r_ins,
+                "r_out[arcmin]": r_outs,
+                "mass[Msun]": mass_bins,
+                "mass_function[Msun^-1]": mass_functions,
+                "delta_mass_function[Msun^-1]": delta_mass_functions,
+            }
+        )
+        df.to_csv("mass_function.csv", index=False, header=True)
+
+        # save metadata
+        with open("metadata.json", "w", encoding="utf8") as f:
+            json.dump(metadata, f)
 
 
 def gaia_err_func(G):
