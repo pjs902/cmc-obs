@@ -8,18 +8,36 @@ def snapshot():
     browser = CMCBrowser()
 
     browser.load_snapshot(
-        model_name="N4e5_rv1_rg8_Z0.02", ss_name="initial.snap0147.dat.gz", distance=5.0, mode="dat.gz"
-    )
-
-    # dont run out of ram
-    browser.loaded_snapshots[
-        "N4e5_rv1_rg8_Z0.02/initial.snap0147.dat.gz"
-    ].data = browser.loaded_snapshots[
-        "N4e5_rv1_rg8_Z0.02/initial.snap0147.dat.gz"
-    ].data.sample(
-        75000
+        model_name="N4e5_rv1_rg8_Z0.02",
+        ss_name="initial.snap0147.dat.gz",
+        distance=5.0,
+        mode="dat.gz",
     )
     return browser.loaded_snapshots["N4e5_rv1_rg8_Z0.02/initial.snap0147.dat.gz"]
+
+
+def test_gzip_snapshot():
+
+    browser = CMCBrowser()
+
+    browser.load_snapshot(
+        model_name="N4e5_rv1_rg8_Z0.02",
+        ss_name="initial.snap0147.dat.gz",
+        distance=5.0,
+        mode="dat.gz",
+    )
+
+
+def test_h5_snapshot():
+
+    browser = CMCBrowser()
+
+    browser.load_snapshot(
+        model_name="N2e5_rv0.5_rg20_Z0.02",
+        ss_name="king.window.snapshots.h5",
+        distance=5,
+        h5_key="8(t=12.000067Gyr)",
+    )
 
 
 @pytest.fixture

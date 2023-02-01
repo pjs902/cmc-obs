@@ -168,7 +168,7 @@ class Observations:
         self.snapshot.add_photometry(filttable)
 
         # set inferred masses flag
-        self.add_inferred_masses = add_inferred_masses
+        self.inferred_masses = add_inferred_masses
 
         # get isochrone, if add_inferred_masses is True
         if add_inferred_masses:
@@ -187,6 +187,8 @@ class Observations:
                 x=self.isochrone.WFC3_UVIS_F814W,
                 y=self.isochrone.star_mass,
                 kind="linear",
+                bounds_error=False,
+                fill_value="extrapolate",
             )
 
             # add inferred masses to main-sequence stars, nan otherwise
@@ -211,7 +213,7 @@ class Observations:
         self.ms_mask = ms_mask
 
         # add inferred masses to main-sequence stars, if add_inferred_masses is True
-        if add_inferred_masses:
+        if self.inferred_masses:
             self.snapshot.data.loc[ms_mask, "inferred_mass"] = lum_to_mass(
                 self.snapshot.data.loc[ms_mask, "tot_absMag_WFC3F814W"]
             )
@@ -512,7 +514,7 @@ class Observations:
 
         # check if inferred masses have been added
         if inferred_mass:
-            if not self.snapshot.add_inferred_masses:
+            if not self.inferred_masses:
                 raise ValueError(
                     "Inferred masses have not been added to snapshot. "
                     "Initialize snapshot with `add_inferred_masses=True`."
