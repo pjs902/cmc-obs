@@ -237,13 +237,13 @@ class Observations:
         Returns
         -------
         bin_centers : array_like
-            Array of bin centers, units of pc.
+            Array of bin centers, units of arcseconds.
         sigma_r : array_like
-            Array of velocity dispersions in the radial direction.
+            Array of velocity dispersions in the radial direction, units are mas/yr.
         delta_sigma_r : array_like
             Array of velocity dispersion uncertainties in the radial direction.
         sigma_t : array_like
-            Array of velocity dispersions in the tangential direction.
+            Array of velocity dispersions in the tangential direction, units are mas/yr.
         delta_sigma_t : array_like
             Array of velocity dispersion uncertainties in the tangential direction.
         """
@@ -293,6 +293,9 @@ class Observations:
         sigma_t = (sigma_t * u.km / u.s).to(u.mas / u.yr).value
         delta_sigma_t = (delta_sigma_t * u.km / u.s).to(u.mas / u.yr).value
 
+        # convert bin centers to arcsec
+        bin_centers = (bin_centers * u.pc).to(u.arcsec).value
+
         return bin_centers, sigma_r, delta_sigma_r, sigma_t, delta_sigma_t, mean_mass
 
     def gaia_PMs(self, stars_per_bin=120):
@@ -308,7 +311,7 @@ class Observations:
         Returns
         -------
         bin_centers : array_like
-            Array of bin centers, units of pc.
+            Array of bin centers, units of arcseconds.
         sigma_r : array_like
             Array of velocity dispersions in the radial direction, units of mas/yr.
         delta_sigma_r : array_like
@@ -362,6 +365,9 @@ class Observations:
         sigma_t = (sigma_t * u.km / u.s).to(u.mas / u.yr).value
         delta_sigma_t = (delta_sigma_t * u.km / u.s).to(u.mas / u.yr).value
 
+        # convert bin centers to arcsec
+        bin_centers = (bin_centers * u.pc).to(u.arcsec).value
+
         return bin_centers, sigma_r, delta_sigma_r, sigma_t, delta_sigma_t, mean_mass
 
     def LOS_dispersion(self, stars_per_bin=25):
@@ -376,19 +382,15 @@ class Observations:
         Returns
         -------
         bin_centers : array_like
-            Array of bin centers, units of pc.
+            Array of bin centers, units of arcseconds.
         sigma : array_like
             Array of velocity dispersions, units of km/s.
         delta_sigma : array_like
             Array of velocity dispersion uncertainties, units of km/s.
         """
 
-        # select only red giants
-        giants = self.snapshot.data.loc[
-            (self.snapshot.data["startype"] == 3)
-            | (self.snapshot.data["bin_startype0"] == 3)
-            | (self.snapshot.data["bin_startype1"] == 3)
-        ]
+        # select only red giants (No Binaries)
+        giants = self.snapshot.data.loc[(self.snapshot.data["startype"] == 3)]
 
         print("number of giants", len(giants))
 
@@ -409,6 +411,9 @@ class Observations:
             stars_per_bin=stars_per_bin,
         )
 
+        # convert bin centers to arcsec
+        bin_centers = (bin_centers * u.pc).to(u.arcsec).value
+
         # get mean mass for this profile
         mean_mass = np.mean(giants["m[MSUN]"])
         return bin_centers, sigma, delta_sigma, mean_mass
@@ -425,7 +430,7 @@ class Observations:
         Returns
         -------
         bin_centers : array_like
-            Array of bin centers, units of pc.
+            Array of bin centers, units of arcminutes.
         number_density : array_like
             Array of number densities, units of arcmin^-2.
         delta_number_density : array_like
@@ -482,6 +487,9 @@ class Observations:
 
         number_density = number_density.to(u.Unit("arcmin^-2")).value
         delta_number_density = delta_number_density.to(u.Unit("arcmin^-2")).value
+
+        # convert bin centers to arcmin
+        bin_centers = (bin_centers * u.pc).to(u.arcmin).value
 
         return bin_centers, number_density, delta_number_density, mean_mass
 
