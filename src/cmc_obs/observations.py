@@ -10,6 +10,9 @@ import ezmist
 import pandas as pd
 import json
 
+from fitter.util.data import ClusterFile, Dataset
+import pathlib
+
 
 def comp_veldisp(vi, ei):
     """
@@ -514,8 +517,8 @@ class Observations:
 
         Returns
         -------
-        bin_centers : array_like
-            Array of bin centers, units of Msun.
+        bin_edges : array_like
+            Array of bin edges, units of Msun.
         mass_function : array_like
             Array of mass function, units of Msun^-1.
         delta_mass_function : array_like
@@ -543,14 +546,14 @@ class Observations:
         # calculate mass function
         if inferred_mass:
             heights, edges = np.histogram(a=sel["inferred_mass"], bins=bins)
-            centers = [(edges[i] + edges[i + 1]) / 2 for i in range(len(edges) - 1)]
+            # centers = [(edges[i] + edges[i + 1]) / 2 for i in range(len(edges) - 1)]
             err = np.sqrt(heights)
         else:
             heights, edges = np.histogram(a=sel["m[MSUN]"], bins=bins)
-            centers = [(edges[i] + edges[i + 1]) / 2 for i in range(len(edges) - 1)]
+            # centers = [(edges[i] + edges[i + 1]) / 2 for i in range(len(edges) - 1)]
             err = np.sqrt(heights)
 
-        return np.array(centers), heights, err
+        return edges, heights, err
 
     def write_obs(self):
         """
@@ -581,11 +584,11 @@ class Observations:
         # create dataframe
         df = pd.DataFrame(
             {
-                "r[arcsec]": bin_centers,
-                "sigma_r[mas/yr]": sigma_r,
-                "delta_sigma_r[mas/yr]": delta_sigma_r,
-                "sigma_t[mas/yr]": sigma_t,
-                "delta_sigma_t[mas/yr]": delta_sigma_t,
+                "r": bin_centers,
+                "σ_R": sigma_r,
+                "Δσ_R": delta_sigma_r,
+                "σ_T": sigma_t,
+                "Δσ_T": delta_sigma_t,
             }
         )
         df.to_csv("hubble_pm.csv", index=False, header=True)
@@ -612,11 +615,11 @@ class Observations:
         # create dataframe
         df = pd.DataFrame(
             {
-                "r[arcsec]": bin_centers,
-                "sigma_r[mas/yr]": sigma_r,
-                "delta_sigma_r[mas/yr]": delta_sigma_r,
-                "sigma_t[mas/yr]": sigma_t,
-                "delta_sigma_t[mas/yr]": delta_sigma_t,
+                "r": bin_centers,
+                "σ_R": sigma_r,
+                "Δσ_R": delta_sigma_r,
+                "σ_T": sigma_t,
+                "Δσ_T": delta_sigma_t,
             }
         )
         df.to_csv("gaia_pm.csv", index=False, header=True)
@@ -634,9 +637,9 @@ class Observations:
         # create dataframe
         df = pd.DataFrame(
             {
-                "r[arcsec]": bin_centers,
-                "sigma[km/s]": sigmas,
-                "delta_sigma[km/s]": delta_sigmas,
+                "r": bin_centers,
+                "σ": sigmas,
+                "Δσ": delta_sigmas,
             }
         )
         df.to_csv("los_dispersion.csv", index=False, header=True)
@@ -658,9 +661,9 @@ class Observations:
 
         df = pd.DataFrame(
             {
-                "r[arcmin]": bin_centers,
-                "number_density[arcmin^-2]": number_density,
-                "delta_number_density[arcmin^-2]": delta_number_density,
+                "rad": bin_centers,
+                "density": number_density,
+                "density_err": delta_number_density,
             }
         )
         df.to_csv("number_density.csv", index=False, header=True)
@@ -671,43 +674,50 @@ class Observations:
 
         r_ins = []
         r_outs = []
-        mass_bins = []
+        m1s = []
+        m2s = []
         mass_functions = []
         delta_mass_functions = []
 
         for i in range(len(annuli)):
-            masses, mass_function, delta_mass_function = self.mass_function(
+            mass_edges, mass_function, delta_mass_function = self.mass_function(
                 r_in=annuli[i][0], r_out=annuli[i][1], inferred_mass=False
             )
-            for _ in range(len(masses)):
+            for _ in range(len(mass_function)):
                 r_ins.append(annuli[i][0])
                 r_outs.append(annuli[i][1])
-            mass_bins.append(masses.flatten())
+            m1 = mass_edges[:-1]
+            m2 = mass_edges[1:]
+            m1s.append(m1.flatten())
+            m2s.append(m2.flatten())
             mass_functions.append(mass_function.flatten())
             delta_mass_functions.append(delta_mass_function.flatten())
 
         # flatten lists
         r_ins = np.array(r_ins).flatten()
         r_outs = np.array(r_outs).flatten()
-        mass_bins = np.array(mass_bins).flatten()
+        m1s = np.array(m1s).flatten()
+        m2s = np.array(m2s).flatten()
         mass_functions = np.array(mass_functions).flatten()
         delta_mass_functions = np.array(delta_mass_functions).flatten()
 
         # round to 3 decimal places
         r_ins = np.round(r_ins, 3)
         r_outs = np.round(r_outs, 3)
-        mass_bins = np.round(mass_bins, 3)
+        m1s = np.round(m1s, 3)
+        m2s = np.round(m2s, 3)
         mass_functions = np.round(mass_functions, 3)
         delta_mass_functions = np.round(delta_mass_functions, 3)
 
         # create dataframe
         df = pd.DataFrame(
             {
-                "r_in[arcmin]": r_ins,
-                "r_out[arcmin]": r_outs,
-                "mass[Msun]": mass_bins,
-                "mass_function[Msun^-1]": mass_functions,
-                "delta_mass_function[Msun^-1]": delta_mass_functions,
+                "r1": r_ins,
+                "r2": r_outs,
+                "m1": m1s,
+                "m2": m2s,
+                "N": mass_functions,
+                "ΔN": delta_mass_functions,
             }
         )
         df.to_csv("mass_function.csv", index=False, header=True)
@@ -715,6 +725,130 @@ class Observations:
         # save metadata
         with open("metadata.json", "w", encoding="utf8") as f:
             json.dump(metadata, f)
+
+    def create_datafile(self, cluster_name):
+        """
+        Create a GCfit datafile from the synthetic data.
+        """
+
+        # TODO: fix all the column names in the output from above
+
+        # first, write out the data just in case it hasn't been done yet
+        self.write_obs()
+
+        # read metadata
+        with open("metadata.json", "r", encoding="utf8") as f:
+            metadata = json.load(f)
+
+        # initialize datafile
+        cf = ClusterFile(cluster_name, force_new=True)
+
+        # add data
+
+        FeH = np.log10(self.snapshot.z/0.02)
+        cf.add_metadata("FeH", FeH)
+        
+        cf.add_metadata("age", self.snapshot.age)
+        cf.add_metadata("distance", self.snapshot.dist)
+        cf.add_metadata("l", 0)
+        cf.add_metadata("b", 0)
+        cf.add_metadata("RA", 0)
+        cf.add_metadata("DEC", 0)
+        cf.add_metadata("μ", 0)
+
+        # start with radial velocity data
+
+        LOS_fn = pathlib.Path("./los_dispersion.csv")
+
+        err = {"Δσ": "σ"}
+        units = {"r": "arcsec", "σ": "km/s", "ΔσUp": "km/s", "ΔσLow": "km/s"}
+        keys = "r", "σ", "Δσ"
+
+        LOS = Dataset("velocity_dispersion/LOS")
+
+        LOS.read_data(LOS_fn, delim=r",", keys=keys, units=units, errors=err)
+        LOS.add_metadata("m", float(metadata["los_mean_mass"]))
+
+        cf.add_dataset(LOS)
+
+        # Now the proper motion data
+
+        # start with the Hubble data
+
+        Hubble_fn = "hubble_pm.csv"
+
+        # keys = 'r', 'σ_tot', 'Δσ_tot', 'σ_R', 'Δσ_R', 'σ_T', 'Δσ_T'
+        keys = "r", "σ_R", "Δσ_R", "σ_T", "Δσ_T"
+
+        names = {"σ_R": "PM_R", "σ_T": "PM_T"}
+        err = {"Δσ_R": "PM_R", "Δσ_T": "PM_T"}
+        units = {
+            "r": "arcsec",
+            "σ_R": "mas/yr",
+            "σ_T": "mas/yr",
+            "Δσ_R": "mas/yr",
+            "Δσ_T": "mas/yr",
+        }
+        PM = Dataset("proper_motion/Hubble")
+
+        PM.read_data(
+            Hubble_fn, delim=r",", keys=keys, units=units, errors=err, names=names
+        )
+        PM.add_metadata("m", float(metadata["hubble_mean_mass"]))
+
+        cf.add_dataset(PM)
+
+        # Now the Gaia data
+        Gaia_fn = pathlib.Path("./gaia_pm.csv")
+
+        keys = "r", "σ_R", "Δσ_R", "σ_T", "Δσ_T"
+
+        names = {"σ_R": "PM_R", "σ_T": "PM_T"}
+        err = {"Δσ_R": "PM_R", "Δσ_T": "PM_T"}
+        units = {
+            "r": "arcsec",
+            "σ_R": "mas/yr",
+            "σ_T": "mas/yr",
+            "Δσ_R": "mas/yr",
+            "Δσ_T": "mas/yr",
+        }
+        PM = Dataset("proper_motion/Gaia")
+
+        PM.read_data(
+            Gaia_fn, delim=r",", keys=keys, units=units, errors=err, names=names
+        )
+
+        PM.add_metadata("m", float(metadata["gaia_mean_mass"]))
+
+        cf.add_dataset(PM)
+
+        # now the number density data
+
+        ND_fn = pathlib.Path("./number_density.csv")
+
+        units = {"rad": "arcmin", "density": "1/arcmin2", "density_err": "1/arcmin2"}
+        names = {"rad": "r", "density": "Σ"}
+        err = {"density_err": "Σ"}
+
+        ND = Dataset("number_density")
+
+        ND.read_data(ND_fn, delim=r",", units=units, errors=err, names=names)
+        ND.add_metadata("m", float(metadata["number_mean_mass"]))
+
+        # Set the background level, zero in this case
+        bg = 0.0
+        ND.add_metadata("background", bg)
+
+        cf.add_dataset(ND)
+
+        # now the mass function data
+        # TODO
+
+        # here we should be safe to just set the cluster to be at 0, 0
+        # and give it a huge field of like 2deg2 or something
+
+        # write the datafile
+        cf.save()
 
 
 def gaia_err_func(G):
