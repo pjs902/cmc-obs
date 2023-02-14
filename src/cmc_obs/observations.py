@@ -899,7 +899,28 @@ class Observations:
         cf.add_dataset(MF)
 
         # write the datafile
-        cf.save()
+        cf.save(force=True)
+
+    def write_cluster_data(self):
+        """
+        Write a bunch of random data to a file.
+        Includes cluster mass, half-mass radius, distance,
+        FeH, Age and a whole bunch of info about the BH population.
+        """
+        info = {}
+        info["name"] = self.snapshot.name
+        info["mass"] = self.snapshot.mass
+        info["r_h"] = self.snapshot.rh
+        info["distance"] = self.snapshot.dist
+        info["FeH"] = self.snapshot.FeH
+        info["age"] = self.snapshot.age
+        info["BH_total_mass"] = self.snapshot.M_BH
+        info["BH_total_number"] = self.snapshot.N_BH
+        info["BH_masses"] = self.snapshot.bh_masses
+
+        # write the data
+        with open("cluster_info.json", "w", encoding="utf8") as f:
+            json.dump(info, f)
 
 
 def gaia_err_func(G):
