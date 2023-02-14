@@ -12,6 +12,7 @@ import json
 
 from fitter.util.data import ClusterFile, Dataset
 import pathlib
+import h5py
 
 
 def comp_veldisp(vi, ei):
@@ -774,23 +775,23 @@ class Observations:
 
         # add data
 
-        FeH = np.log10(self.snapshot.z/0.02)
+        FeH = np.log10(self.snapshot.z / 0.02)
         cf.add_metadata("FeH", FeH)
-        
+
         cf.add_metadata("age", self.snapshot.age)
         cf.add_metadata("distance", self.snapshot.dist)
-        cf.add_metadata("l", 0)
-        cf.add_metadata("b", 0)
-        cf.add_metadata("RA", 0)
-        cf.add_metadata("DEC", 0)
-        cf.add_metadata("μ", 0)
+        cf.add_metadata("l", 0.0)
+        cf.add_metadata("b", 0.0)
+        cf.add_metadata("RA", 0.0)
+        cf.add_metadata("DEC", 0.0)
+        cf.add_metadata("μ", 0.0)
 
         # start with radial velocity data
 
         LOS_fn = pathlib.Path("./los_dispersion.csv")
 
         err = {"Δσ": "σ"}
-        units = {"r": "arcsec", "σ": "km/s", "ΔσUp": "km/s", "ΔσLow": "km/s"}
+        units = {"r": "arcsec", "σ": "km/s", "Δσ": "km/s"}
         keys = "r", "σ", "Δσ"
 
         LOS = Dataset("velocity_dispersion/LOS")
@@ -859,7 +860,7 @@ class Observations:
         names = {"rad": "r", "density": "Σ"}
         err = {"density_err": "Σ"}
 
-        ND = Dataset("number_density")
+        ND = Dataset("number_density/GaiaHST")
 
         ND.read_data(ND_fn, delim=r",", units=units, errors=err, names=names)
         ND.add_metadata("m", float(metadata["number_mean_mass"]))
@@ -871,10 +872,31 @@ class Observations:
         cf.add_dataset(ND)
 
         # now the mass function data
-        # TODO
 
-        # here we should be safe to just set the cluster to be at 0, 0
-        # and give it a huge field of like 2deg2 or something
+        keys = ("r1", "r2", "m1", "m2", "N", "ΔN")
+        units = {"r1": "arcmin", "r2": "arcmin", "m1": "Msun", "m2": "Msun"}
+        err = {"ΔN": "N"}
+        fields = {}
+        # just a huge square
+        fields["CMC"] = {
+            "a": np.array(
+                [[2.0, 2.0], [2.0, -2.0], [-2.0, -2.0], [-2.0, 2.0]], dtype="f"
+            )
+        }
+        MF = Dataset("mass_function/CMC")
+        mf_df = pd.read_csv("mass_function.csv")
+
+        MF.read_data(mf_df, keys=keys, units=units, errors=err)
+
+        print(f"{fields = }")
+        fld = fields["CMC"]
+        print(f"{fld = }")
+        MF.add_variable("fields", h5py.Empty("f"), "deg", fld)
+        MF.add_metadata("field_unit", "deg")
+
+        MF.add_metadata("source", "CMC-obs")
+        MF.add_metadata("proposal", "CMC-obs")
+        cf.add_dataset(MF)
 
         # write the datafile
         cf.save()
