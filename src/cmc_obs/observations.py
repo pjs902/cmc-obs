@@ -670,7 +670,36 @@ class Observations:
         metadata["number_mean_mass"] = mean_mass
 
         # Mass Function
-        annuli = [(0, 0.4), (0.4, 0.8), (0.8, 1.2), (1.2, 1.6), (2, 2.5), (4, 6)]
+
+        # area of innermost annulus
+        # for only the outer 2 annuli:
+        # calculate the inner and outer radii of each annulus, based on the
+        # centers of the annuli matching the desired area
+        # For now lets normalize to the 47 Tuc Heinke exposure, eg 0-1.5' annulus
+        inner_annuli = [
+            (0, 0.4),
+            (0.4, 0.8),
+            (0.8, 1.2),
+            (1.2, 1.6),
+        ]
+        outer_annuli_centers = [2.5, 5] << u.arcmin
+
+        # target area of outer annuli
+        area = np.pi * 1.5 * u.arcmin**2
+
+        # build the outer annuli
+        outer_annuli = []
+        for i in range(len(outer_annuli_centers)):
+            w = area / (4 * np.pi * outer_annuli_centers[i])
+            outer_annuli.append(
+                (
+                    outer_annuli_centers[i].value - w.value,
+                    outer_annuli_centers[i].value + w.value,
+                )
+            )
+
+        # concat the inner and outer annuli
+        annuli = inner_annuli + outer_annuli
 
         r_ins = []
         r_outs = []
