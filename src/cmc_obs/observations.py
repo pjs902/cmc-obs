@@ -274,7 +274,8 @@ class Observations:
 
         # uncertainty of 0.1 mas/yr
         err = (0.1 * u.Unit("mas/yr")).to(u.km / u.s)
-        errs = (np.ones(len(self.snapshot.data)) * err).value
+        errs = np.random.normal(loc=0, scale=err, size=len(stars))
+        # errs = (np.ones(len(self.snapshot.data)) * err).value
 
         # build profiles
         bin_centers, sigma_r, delta_sigma_r = veldisp_profile(
@@ -347,17 +348,21 @@ class Observations:
         # convert to km/s
         errs = (err * u.Unit("mas/yr")).to(u.km / u.s).value
 
+        # resample based on errors
+        kms_r = np.random.normal(loc=stars["vd[KM/S]"].values, scale=errs)
+        kms_t = np.random.normal(loc=stars["va[KM/S]"].values, scale=errs)
+
         # build profiles
         bin_centers, sigma_r, delta_sigma_r = veldisp_profile(
             x=stars["d[PC]"].values,
-            vi=stars["vd[KM/S]"].values,
+            vi=kms_r,
             ei=errs,
             stars_per_bin=stars_per_bin,
         )
 
         bin_centers, sigma_t, delta_sigma_t = veldisp_profile(
             x=stars["d[PC]"].values,
-            vi=stars["va[KM/S]"].values,
+            vi=kms_t,
             ei=errs,
             stars_per_bin=stars_per_bin,
         )
@@ -407,13 +412,13 @@ class Observations:
         print("number of giants", len(giants))
 
         # uncertainty of 1 km/s
-        err = np.ones(len(giants)) * 1
+        errs = np.random.normal(loc=0, scale=1, size=len(giants))
 
         # build profile
         bin_centers, sigma, delta_sigma = veldisp_profile(
             x=giants["d[PC]"].values,
             vi=giants["vz[KM/S]"].values,
-            ei=err,
+            ei=errs,
             stars_per_bin=stars_per_bin,
         )
 
@@ -541,20 +546,30 @@ class Observations:
         # select main sequence stars, using ms mask
         sel = self.snapshot.data.loc[self.ms_mask]
 
+        # only do the mass function for main sequence masses
+        lower = np.min(sel["m[MSUN]"])
+        upper = ck.find_MS_TO(t=self.snapshot.age, z=self.snapshot.z)
+
         # select stars in annulus
         sel = sel.loc[(sel["d[PC]"] > r_in) & (sel["d[PC]"] < r_out)]
 
         # calculate mass function
         if inferred_mass:
-            heights, edges = np.histogram(a=sel["inferred_mass"], bins=bins)
+            heights, edges = np.histogram(a=sel["inferred_mass"], bins=bins, range=(lower, upper))
             # centers = [(edges[i] + edges[i + 1]) / 2 for i in range(len(edges) - 1)]
             err = np.sqrt(heights)
         else:
-            heights, edges = np.histogram(a=sel["m[MSUN]"], bins=bins)
+            heights, edges = np.histogram(a=sel["m[MSUN]"], bins=bins, range=(lower, upper))
             # centers = [(edges[i] + edges[i + 1]) / 2 for i in range(len(edges) - 1)]
             err = np.sqrt(heights)
 
-        return edges, heights, err
+        # need to add some scatter for realism
+        # adopt F=3
+        F = 3
+        new_uncertainties = err * F
+        new_heights = np.random.normal(loc=heights, scale=new_uncertainties)
+
+        return edges, new_heights, err
 
     def write_obs(self):
         """
