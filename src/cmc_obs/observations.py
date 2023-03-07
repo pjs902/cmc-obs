@@ -2,7 +2,7 @@ import numpy as np
 import scipy as sp
 from scipy.optimize import fsolve
 from tqdm import trange
-from fitter.util import angular_width
+from gcfit.util import angular_width
 import astropy.units as u
 import cmctoolkit as ck
 import logging
@@ -10,7 +10,7 @@ import ezmist
 import pandas as pd
 import json
 
-from fitter.util.data import ClusterFile, Dataset
+from gcfit.util.data import ClusterFile, Dataset
 import pathlib
 import h5py
 
@@ -592,6 +592,10 @@ class Observations:
                 "Δσ_T": delta_sigma_t,
             }
         )
+        # drop rows with NaNs
+        df = df.dropna()
+
+        # write to file
         df.to_csv("hubble_pm.csv", index=False, header=True)
         metadata["hubble_mean_mass"] = mean_mass
 
@@ -623,6 +627,10 @@ class Observations:
                 "Δσ_T": delta_sigma_t,
             }
         )
+        # drop rows with NaNs
+        df = df.dropna()
+
+        # write to file
         df.to_csv("gaia_pm.csv", index=False, header=True)
         metadata["gaia_mean_mass"] = mean_mass
 
@@ -643,6 +651,10 @@ class Observations:
                 "Δσ": delta_sigmas,
             }
         )
+        # drop rows with NaNs
+        df = df.dropna()
+
+        # write to file
         df.to_csv("los_dispersion.csv", index=False, header=True)
         metadata["los_mean_mass"] = mean_mass
 
@@ -667,6 +679,10 @@ class Observations:
                 "density_err": delta_number_density,
             }
         )
+        # drop rows with NaNs
+        df = df.dropna()
+
+        # write to file
         df.to_csv("number_density.csv", index=False, header=True)
         metadata["number_mean_mass"] = mean_mass
 
@@ -701,6 +717,7 @@ class Observations:
 
         # concat the inner and outer annuli
         annuli = inner_annuli + outer_annuli
+        print("Annuli: ", annuli)
 
         r_ins = []
         r_outs = []
@@ -750,6 +767,10 @@ class Observations:
                 "ΔN": delta_mass_functions,
             }
         )
+        # drop rows with NaNs
+        df = df.dropna()
+
+        # write to file
         df.to_csv("mass_function.csv", index=False, header=True)
 
         # save metadata
@@ -785,6 +806,8 @@ class Observations:
         cf.add_metadata("RA", 0.0)
         cf.add_metadata("DEC", 0.0)
         cf.add_metadata("μ", 0.0)
+        cf.add_metadata("Ndot", 0.0)
+        cf.add_metadata("vesc", 90.0)
 
         # start with radial velocity data
 
@@ -797,7 +820,7 @@ class Observations:
         LOS = Dataset("velocity_dispersion/LOS")
 
         LOS.read_data(LOS_fn, delim=r",", keys=keys, units=units, errors=err)
-        LOS.add_metadata("m", float(metadata["los_mean_mass"]))
+        # LOS.add_metadata("m", float(metadata["los_mean_mass"]))
 
         cf.add_dataset(LOS)
 
@@ -824,7 +847,7 @@ class Observations:
         PM.read_data(
             Hubble_fn, delim=r",", keys=keys, units=units, errors=err, names=names
         )
-        PM.add_metadata("m", float(metadata["hubble_mean_mass"]))
+        # PM.add_metadata("m", float(metadata["hubble_mean_mass"]))
 
         cf.add_dataset(PM)
 
@@ -848,7 +871,7 @@ class Observations:
             Gaia_fn, delim=r",", keys=keys, units=units, errors=err, names=names
         )
 
-        PM.add_metadata("m", float(metadata["gaia_mean_mass"]))
+        # PM.add_metadata("m", float(metadata["gaia_mean_mass"]))
 
         cf.add_dataset(PM)
 
@@ -863,7 +886,7 @@ class Observations:
         ND = Dataset("number_density/GaiaHST")
 
         ND.read_data(ND_fn, delim=r",", units=units, errors=err, names=names)
-        ND.add_metadata("m", float(metadata["number_mean_mass"]))
+        # ND.add_metadata("m", float(metadata["number_mean_mass"]))
 
         # Set the background level, zero in this case
         bg = 0.0
