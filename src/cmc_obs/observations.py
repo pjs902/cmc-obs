@@ -273,7 +273,7 @@ class Observations:
         print("number of stars = ", len(stars))
 
         # uncertainty of 0.1 mas/yr
-        err = (0.1 * u.Unit("mas/yr")).to(u.km / u.s)
+        err = (0.1 * u.Unit("mas/yr")).to(u.km / u.s).value
         errs = np.random.normal(loc=0, scale=err, size=len(stars))
         # errs = (np.ones(len(self.snapshot.data)) * err).value
 
