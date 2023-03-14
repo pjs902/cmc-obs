@@ -954,6 +954,8 @@ class Observations:
         info["BH_total_mass"] = self.snapshot.M_BH
         info["BH_total_number"] = self.snapshot.N_BH
         info["BH_masses"] = self.snapshot.bh_masses
+        info["vesc_initial"] = self.snapshot.vesc_initial
+        info["vesc_final"] = self.snapshot.vesc_final
 
         # write the data
         with open("cluster_info.json", "w", encoding="utf8") as f:
