@@ -176,6 +176,7 @@ class Observations:
         # set inferred masses flag
         self.inferred_masses = add_inferred_masses
 
+
         # get isochrone, if add_inferred_masses is True
         if add_inferred_masses:
             self.isochrone = ezmist.get_one_isochrone(
@@ -809,11 +810,9 @@ class Observations:
         # initialize datafile
         cf = ClusterFile(cluster_name, force_new=True)
 
-        # add data
-
+        # add metadata
         FeH = np.log10(self.snapshot.z / 0.02)
         cf.add_metadata("FeH", FeH)
-
         cf.add_metadata("age", self.snapshot.age)
         cf.add_metadata("distance", self.snapshot.dist)
         cf.add_metadata("l", 0.0)
@@ -822,7 +821,7 @@ class Observations:
         cf.add_metadata("DEC", 0.0)
         cf.add_metadata("μ", 0.0)
         cf.add_metadata("Ndot", 0.0)
-        cf.add_metadata("vesc", 90.0)
+        cf.add_metadata("vesc", self.snapshot.vesc_initial)
 
         # start with radial velocity data
 
@@ -898,7 +897,7 @@ class Observations:
         names = {"rad": "r", "density": "Σ"}
         err = {"density_err": "Σ"}
 
-        ND = Dataset("number_density/GaiaHST")
+        ND = Dataset("number_density")
 
         ND.read_data(ND_fn, delim=r",", units=units, errors=err, names=names)
         # ND.add_metadata("m", float(metadata["number_mean_mass"]))
