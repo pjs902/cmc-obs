@@ -176,7 +176,6 @@ class Observations:
         # set inferred masses flag
         self.inferred_masses = add_inferred_masses
 
-
         # get isochrone, if add_inferred_masses is True
         if add_inferred_masses:
             self.isochrone = ezmist.get_one_isochrone(
@@ -556,11 +555,15 @@ class Observations:
 
         # calculate mass function
         if inferred_mass:
-            heights, edges = np.histogram(a=sel["inferred_mass"], bins=bins, range=(lower, upper))
+            heights, edges = np.histogram(
+                a=sel["inferred_mass"], bins=bins, range=(lower, upper)
+            )
             # centers = [(edges[i] + edges[i + 1]) / 2 for i in range(len(edges) - 1)]
             err = np.sqrt(heights)
         else:
-            heights, edges = np.histogram(a=sel["m[MSUN]"], bins=bins, range=(lower, upper))
+            heights, edges = np.histogram(
+                a=sel["m[MSUN]"], bins=bins, range=(lower, upper)
+            )
             # centers = [(edges[i] + edges[i + 1]) / 2 for i in range(len(edges) - 1)]
             err = np.sqrt(heights)
 
