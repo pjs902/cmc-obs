@@ -338,8 +338,13 @@ class Observations:
         print("number of stars = ", len(stars))
 
         # select based on G mag, 17 from VHB+2019
+        # also only want stars further than 100 arcsec so we dont overlap with HST, TODO: should this be a crowding based selection?
+        # using the 13 mag limit from Vasiliev+Baumgardt+2021 https://arxiv.org/pdf/2102.09568.pdf
+        rad_lim = (100 * u.arcsec).to(u.pc).value
         stars = stars.loc[
-            (stars["tot_obsMag_GaiaG"] < 17) & (stars["tot_obsMag_GaiaG"] > 3)
+            (stars["tot_obsMag_GaiaG"] < 17)
+            & (stars["tot_obsMag_GaiaG"] > 13)
+            & (stars["d[PC]"] > rad_lim)
         ]
         print("number of stars = ", len(stars))
 
