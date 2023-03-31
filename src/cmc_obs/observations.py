@@ -147,6 +147,7 @@ class Observations:
         snapshot,
         filtindex="/home/peter/research/cmctoolkit/filt_index.txt",
         add_inferred_masses=False,
+        cluster_name="CMC"
     ):
         """
         Initialize an Observations object.
@@ -175,6 +176,8 @@ class Observations:
 
         # set inferred masses flag
         self.inferred_masses = add_inferred_masses
+
+        self.cluster_name = cluster_name
 
         # get isochrone, if add_inferred_masses is True
         if add_inferred_masses:
@@ -798,7 +801,7 @@ class Observations:
         df.to_csv("mass_function.csv", index=False, header=True)
 
         # save metadata
-        with open("metadata.json", "w", encoding="utf8") as f:
+        with open(f"{self.cluster_name}_metadata.json", "w", encoding="utf8") as f:
             json.dump(metadata, f)
 
     def create_datafile(self, cluster_name):
@@ -806,13 +809,11 @@ class Observations:
         Create a GCfit datafile from the synthetic data.
         """
 
-        # TODO: fix all the column names in the output from above
-
         # first, write out the data just in case it hasn't been done yet
         self.write_obs()
 
         # read metadata
-        with open("metadata.json", "r", encoding="utf8") as f:
+        with open(f"{self.cluster_name}_metadata.json", "r", encoding="utf8") as f:
             metadata = json.load(f)
 
         # initialize datafile
@@ -966,7 +967,7 @@ class Observations:
         info["vesc_final"] = self.snapshot.vesc_final
 
         # write the data
-        with open("cluster_info.json", "w", encoding="utf8") as f:
+        with open(f"{self.cluster_name}_cluster_info.json", "w", encoding="utf8") as f:
             json.dump(info, f)
 
 
