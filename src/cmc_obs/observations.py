@@ -963,6 +963,8 @@ class Observations:
         info["BH_total_mass"] = self.snapshot.M_BH
         info["BH_total_number"] = self.snapshot.N_BH
         info["BH_masses"] = self.snapshot.bh_masses
+        # note these radii are projected
+        info["BH_radii"] = self.snapshot.bh_radii
         info["vesc_initial"] = self.snapshot.vesc_initial
         info["vesc_final"] = self.snapshot.vesc_final
 
