@@ -233,6 +233,30 @@ class Observations:
         # sort by projected distance
         self.snapshot.data = self.snapshot.data.sort_values(by="d[PC]")
 
+        # BH info
+        self.snapshot.bh_radii = pd.concat(
+            [
+                self.snapshot.data.loc[(self.snapshot.data["startype"] == 14)]["d[PC]"],
+                self.snapshot.data.loc[(self.snapshot.data["bin_startype0"] == 14)]["d[PC]"],
+                self.snapshot.data.loc[(self.snapshot.data["bin_startype1"] == 14)]["d[PC]"],
+            ],
+            axis=0,
+        ).to_list()
+
+        self.snapshot.bh_masses = pd.concat(
+            [
+                self.snapshot.data.loc[(self.snapshot.data["startype"] == 14)]["m_MSUN"],
+                self.snapshot.data.loc[(self.snapshot.data["bin_startype0"] == 14)]["m0_MSUN"],
+                self.snapshot.data.loc[(self.snapshot.data["bin_startype1"] == 14)]["m1_MSUN"],
+            ],
+            axis=0,
+        ).to_list()
+        self.snapshot.M_BH = np.sum(self.snapshot.bh_masses)
+        self.snapshot.N_BH = len(self.snapshot.bh_masses)
+
+
+
+
     def hubble_PMs(self, stars_per_bin=120):
         """
         Simulate proper motion measurements with HST-like performance.
