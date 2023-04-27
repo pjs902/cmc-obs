@@ -982,6 +982,8 @@ class Observations:
         info["mass"] = self.snapshot.mass
         info["initial_mass"] = self.snapshot.initial_mass
         info["r_h"] = self.snapshot.rh
+        info["r_c"] = self.snapshot.rcore
+        info["r_t"] = self.snapshot.rtidal
         info["distance"] = self.snapshot.dist
         info["FeH"] = self.snapshot.FeH
         info["age"] = self.snapshot.age
