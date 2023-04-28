@@ -147,7 +147,7 @@ class Observations:
         snapshot,
         filtindex="/home/peter/research/cmctoolkit/filt_index.txt",
         add_inferred_masses=False,
-        cluster_name="CMC"
+        cluster_name="CMC",
     ):
         """
         Initialize an Observations object.
@@ -237,25 +237,32 @@ class Observations:
         self.snapshot.bh_radii = pd.concat(
             [
                 self.snapshot.data.loc[(self.snapshot.data["startype"] == 14)]["d[PC]"],
-                self.snapshot.data.loc[(self.snapshot.data["bin_startype0"] == 14)]["d[PC]"],
-                self.snapshot.data.loc[(self.snapshot.data["bin_startype1"] == 14)]["d[PC]"],
+                self.snapshot.data.loc[(self.snapshot.data["bin_startype0"] == 14)][
+                    "d[PC]"
+                ],
+                self.snapshot.data.loc[(self.snapshot.data["bin_startype1"] == 14)][
+                    "d[PC]"
+                ],
             ],
             axis=0,
         ).to_list()
 
         self.snapshot.bh_masses = pd.concat(
             [
-                self.snapshot.data.loc[(self.snapshot.data["startype"] == 14)]["m_MSUN"],
-                self.snapshot.data.loc[(self.snapshot.data["bin_startype0"] == 14)]["m0_MSUN"],
-                self.snapshot.data.loc[(self.snapshot.data["bin_startype1"] == 14)]["m1_MSUN"],
+                self.snapshot.data.loc[(self.snapshot.data["startype"] == 14)][
+                    "m_MSUN"
+                ],
+                self.snapshot.data.loc[(self.snapshot.data["bin_startype0"] == 14)][
+                    "m0_MSUN"
+                ],
+                self.snapshot.data.loc[(self.snapshot.data["bin_startype1"] == 14)][
+                    "m1_MSUN"
+                ],
             ],
             axis=0,
         ).to_list()
         self.snapshot.M_BH = np.sum(self.snapshot.bh_masses)
         self.snapshot.N_BH = len(self.snapshot.bh_masses)
-
-
-
 
     def hubble_PMs(self, stars_per_bin=120):
         """
@@ -830,12 +837,12 @@ class Observations:
         ) = self.number_density()
 
         # set up interpolation function
-        nd_interp = sp.interpolate.interp1d(bin_centers, number_density, bounds_error=False, fill_value=(0,8000))
-
-
+        nd_interp = sp.interpolate.interp1d(
+            bin_centers, number_density, bounds_error=False, fill_value=(0, 8000)
+        )
 
         # go through row by row and interpolate the number density at the mean radius
-        # then calculate the limiting mass and remove any rows with masses below that 
+        # then calculate the limiting mass and remove any rows with masses below that
         for i in range(len(df)):
             ND = nd_interp((df["r1"][i] + df["r2"][i]) / 2)
             limiting_mass = ND_limiting_mass(ND)
@@ -843,9 +850,6 @@ class Observations:
             # if the lower mass bin is below the limiting mass, drop the row
             if df["m1"][i] < limiting_mass:
                 df.drop(i, inplace=True)
-
-
-
 
         # drop rows with NaNs
         df = df.dropna()
@@ -1047,27 +1051,14 @@ def gaia_err_func(G):
     """
 
     mags = np.linspace(12, 21, 10)
-    errs = [
-        0.017,
-        0.015,
-        0.018,
-        0.026,
-        0.041,
-        0.067,
-        0.117,
-        0.2185,
-        0.4575,
-        1.423
-    ]
+    errs = [0.017, 0.015, 0.018, 0.026, 0.041, 0.067, 0.117, 0.2185, 0.4575, 1.423]
     # return interpolated error, filling in left and right edges with 0.017 and 1.423 respectively.
     return np.interp(G, mags, errs)
 
 
-
-
 def ND_limiting_mass(ND):
     """
-    Get a rough estimate of the limiting mass for a given number density for the mass 
+    Get a rough estimate of the limiting mass for a given number density for the mass
     function data. Uses 47 Tuc as the reference cluster because its large and nearby
     with lots of data.
 
@@ -1081,13 +1072,47 @@ def ND_limiting_mass(ND):
     m_lim : float
         Limiting mass in Msun
     """
-    
+
     # these values are extracted from the mass function and number density data for 47 Tuc
-    nds = [6118.4066905877835, 8449.380572042252, 3756.8946538476357, 2344.9320491979393, 1456.5664897698775, 1051.6472865401154, 721.4176477673034, 336.27092110511785, 235.53654529775912, 173.15865839699967, 129.4437097007724, 97.66022445255905, 61.69620878087059, 24.41689517414916, 0.5781700910928782]
-    ms = [0.715, 0.634, 0.589, 0.53, 0.38, 0.33, 0.33, 0.33, 0.28, 0.13, 0.13, 0.13, 0.13, 0.13, 0.154]
+    nds = [
+        6118.4066905877835,
+        8449.380572042252,
+        3756.8946538476357,
+        2344.9320491979393,
+        1456.5664897698775,
+        1051.6472865401154,
+        721.4176477673034,
+        336.27092110511785,
+        235.53654529775912,
+        173.15865839699967,
+        129.4437097007724,
+        97.66022445255905,
+        61.69620878087059,
+        24.41689517414916,
+        0.5781700910928782,
+    ]
+    ms = [
+        0.715,
+        0.634,
+        0.589,
+        0.53,
+        0.38,
+        0.33,
+        0.33,
+        0.33,
+        0.28,
+        0.13,
+        0.13,
+        0.13,
+        0.13,
+        0.13,
+        0.154,
+    ]
 
     # cubic spline smooths it out a bit
-    lim_spl = sp.interpolate.interp1d(x=nds,y=ms,kind="cubic", bounds_error=False, fill_value=(0.8,0.154))
+    lim_spl = sp.interpolate.interp1d(
+        x=nds, y=ms, kind="cubic", bounds_error=False, fill_value=(0.8, 0.154)
+    )
 
     # return the interpolated value
     return lim_spl(ND)
