@@ -818,6 +818,35 @@ class Observations:
                 "ΔN": delta_mass_functions,
             }
         )
+
+        # Here we can just tack on the limiting mass logic
+
+        # first we need the number density profile
+        (
+            bin_centers,
+            number_density,
+            delta_number_density,
+            mean_mass,
+        ) = self.number_density()
+
+        # set up interpolation function
+        nd_interp = sp.interpolate.interp1d(bin_centers, number_density, bounds_error=False, fill_value=(0,8000))
+
+
+
+        # go through row by row and interpolate the number density at the mean radius
+        # then calculate the limiting mass and remove any rows with masses below that 
+        for i in range(len(df)):
+            ND = nd_interp((df["r1"][i] + df["r2"][i]) / 2)
+            limiting_mass = ND_limiting_mass(ND)
+
+            # if the lower mass bin is below the limiting mass, drop the row
+            if df["m1"][i] < limiting_mass:
+                df.drop(i, inplace=True)
+
+
+
+
         # drop rows with NaNs
         df = df.dropna()
 
@@ -1028,7 +1057,37 @@ def gaia_err_func(G):
         0.117,
         0.2185,
         0.4575,
-        1.423,
+        1.423
     ]
     # return interpolated error, filling in left and right edges with 0.017 and 1.423 respectively.
     return np.interp(G, mags, errs)
+
+
+
+
+def ND_limiting_mass(ND):
+    """
+    Get a rough estimate of the limiting mass for a given number density for the mass 
+    function data. Uses 47 Tuc as the reference cluster because its large and nearby
+    with lots of data.
+
+    Parameters
+    ----------
+    ND : float
+        Number density in stars/arcmin^2
+
+    Returns
+    -------
+    m_lim : float
+        Limiting mass in Msun
+    """
+    
+    # these values are extracted from the mass function and number density data for 47 Tuc
+    nds = [6118.4066905877835, 8449.380572042252, 3756.8946538476357, 2344.9320491979393, 1456.5664897698775, 1051.6472865401154, 721.4176477673034, 336.27092110511785, 235.53654529775912, 173.15865839699967, 129.4437097007724, 97.66022445255905, 61.69620878087059, 24.41689517414916, 0.5781700910928782]
+    ms = [0.715, 0.634, 0.589, 0.53, 0.38, 0.33, 0.33, 0.33, 0.28, 0.13, 0.13, 0.13, 0.13, 0.13, 0.154]
+
+    # cubic spline smooths it out a bit
+    lim_spl = sp.interpolate.interp1d(x=nds,y=ms,kind="cubic", bounds_error=False, fill_value=(0.8,0.154))
+
+    # return the interpolated value
+    return lim_spl(ND)
