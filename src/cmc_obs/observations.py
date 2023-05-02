@@ -592,6 +592,35 @@ class Observations:
         # select stars in annulus
         sel = sel.loc[(sel["d[PC]"] > r_in) & (sel["d[PC]"] < r_out)]
 
+        # Here we can just tack on the limiting mass logic
+
+        # first we need the number density profile
+        (
+            bin_centers,
+            number_density,
+            delta_number_density,
+            mean_mass,
+        ) = self.number_density()
+
+        # set up interpolation function
+        nd_interp = sp.interpolate.interp1d(
+            bin_centers, number_density, bounds_error=False, fill_value=(0, 8000)
+        )
+
+        # get the average number density in the annulus, get the limiting mass
+        ND = np.mean(nd_interp([r_in, r_out]))
+
+        limiting_mass = ND_limiting_mass(ND)
+
+        # update sel to only include stars above the limiting mass
+        sel = sel.loc[sel["m[MSUN]"] > limiting_mass]
+
+        # update lower mass limits for histogram
+        lower = np.min(sel["m[MSUN]"])
+
+        # need to update number of bins based on new mass limits
+        bins = int(np.ceil((upper - lower) / 0.1))
+
         # calculate mass function
         if inferred_mass:
             heights, edges = np.histogram(
@@ -798,7 +827,14 @@ class Observations:
             mass_functions.append(mass_function.flatten())
             delta_mass_functions.append(delta_mass_function.flatten())
 
-        # flatten lists
+        # need to flatten lists before converting to numpy arrays, not sure why this broke things,
+        # somehow related to making arrays from ragged lists and its recent deprecation
+        m1s = [item for elem in m1s for item in elem]
+        m2s = [item for elem in m2s for item in elem]
+        mass_functions = [item for elem in mass_functions for item in elem]
+        delta_mass_functions = [item for elem in delta_mass_functions for item in elem]
+
+        # convert to numpy arrays
         r_ins = np.array(r_ins).flatten()
         r_outs = np.array(r_outs).flatten()
         m1s = np.array(m1s).flatten()
@@ -825,31 +861,6 @@ class Observations:
                 "ΔN": delta_mass_functions,
             }
         )
-
-        # Here we can just tack on the limiting mass logic
-
-        # first we need the number density profile
-        (
-            bin_centers,
-            number_density,
-            delta_number_density,
-            mean_mass,
-        ) = self.number_density()
-
-        # set up interpolation function
-        nd_interp = sp.interpolate.interp1d(
-            bin_centers, number_density, bounds_error=False, fill_value=(0, 8000)
-        )
-
-        # go through row by row and interpolate the number density at the mean radius
-        # then calculate the limiting mass and remove any rows with masses below that
-        for i in range(len(df)):
-            ND = nd_interp((df["r1"][i] + df["r2"][i]) / 2)
-            limiting_mass = ND_limiting_mass(ND)
-
-            # if the lower mass bin is below the limiting mass, drop the row
-            if df["m1"][i] < limiting_mass:
-                df.drop(i, inplace=True)
 
         # drop rows with NaNs
         df = df.dropna()
