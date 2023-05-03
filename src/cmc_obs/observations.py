@@ -606,7 +606,7 @@ class Observations:
 
         # set up interpolation function
         nd_interp = sp.interpolate.interp1d(
-            bin_centers, number_density, kind="cubic", bounds_error=False, fill_value=(0, 8000)
+            bin_centers, number_density, kind="cubic", bounds_error=False, fill_value=(8000, 0)
         )
 
         # get the average number density in the annulus, get the limiting mass
@@ -1125,7 +1125,7 @@ def ND_limiting_mass(ND):
 
     # interpolate the data
     lim_spl = sp.interpolate.interp1d(
-        x=nds, y=ms, kind="linear", bounds_error=False, fill_value=(0.8, 0.13)
+        x=nds, y=ms, kind="linear", bounds_error=False, fill_value=(0.13, 0.8)
     )
 
     # return the interpolated value
