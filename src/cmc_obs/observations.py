@@ -485,6 +485,8 @@ class Observations:
             Array of number densities, units of arcmin^-2.
         delta_number_density : array_like
             Array of number density uncertainties, units of arcmin^-2.
+        mean_mass : float
+            Mean mass of stars in the profile, units of solar masses.
         """
 
         # select main sequence stars
@@ -604,7 +606,7 @@ class Observations:
 
         # set up interpolation function
         nd_interp = sp.interpolate.interp1d(
-            bin_centers, number_density, bounds_error=False, fill_value=(0, 8000)
+            bin_centers, number_density, kind="cubic", bounds_error=False, fill_value=(0, 8000)
         )
 
         # get the average number density in the annulus, get the limiting mass
@@ -613,7 +615,7 @@ class Observations:
         limiting_mass = ND_limiting_mass(ND)
 
         # update sel to only include stars above the limiting mass
-        sel = sel.loc[sel["m[MSUN]"] > limiting_mass]
+        sel = sel.loc[sel["m[MSUN]"] > (limiting_mass - 0.1)]
 
         # update lower mass limits for histogram
         lower = np.min(sel["m[MSUN]"])
@@ -1085,8 +1087,9 @@ def ND_limiting_mass(ND):
     """
 
     # these values are extracted from the mass function and number density data for 47 Tuc
+    # did tweak that innermost density value and outermost mass value to be monotonic
     nds = [
-        6118.4066905877835,
+        8555.4066905877835,
         8449.380572042252,
         3756.8946538476357,
         2344.9320491979393,
@@ -1117,12 +1120,12 @@ def ND_limiting_mass(ND):
         0.13,
         0.13,
         0.13,
-        0.154,
+        0.13,
     ]
 
-    # cubic spline smooths it out a bit
+    # interpolate the data
     lim_spl = sp.interpolate.interp1d(
-        x=nds, y=ms, kind="cubic", bounds_error=False, fill_value=(0.8, 0.154)
+        x=nds, y=ms, kind="linear", bounds_error=False, fill_value=(0.8, 0.13)
     )
 
     # return the interpolated value
