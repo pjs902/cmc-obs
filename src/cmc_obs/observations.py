@@ -606,13 +606,18 @@ class Observations:
 
         # set up interpolation function
         nd_interp = sp.interpolate.interp1d(
-            bin_centers, number_density, kind="cubic", bounds_error=False, fill_value=(8000, 0)
+            bin_centers,
+            number_density,
+            kind="cubic",
+            bounds_error=False,
+            fill_value=(8000, 0),
         )
 
         # get the average number density in the annulus, get the limiting mass
         ND = np.mean(nd_interp([r_in, r_out]))
 
-        limiting_mass = ND_limiting_mass(ND)
+        # limiting mass should never be more than the MSTO,
+        limiting_mass = np.min([ND_limiting_mass(ND), upper])
 
         # update sel to only include stars above the limiting mass
         sel = sel.loc[sel["m[MSUN]"] > (limiting_mass - 0.1)]
