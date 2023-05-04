@@ -116,9 +116,9 @@ def veldisp_profile(x, vi, ei, stars_per_bin=15):
 
     bin_centers = np.zeros(bins)
 
-    # loop over bins, tqdm
+    # loop over bins
     start = 0
-    for i in trange(bins):
+    for i in range(bins):
         # set end of bin
         end = np.min([start + stars_per_bin, len(x)])
         # calculate velocity dispersion
