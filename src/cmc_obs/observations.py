@@ -293,7 +293,7 @@ class Observations:
             | (self.snapshot.data["bin_startype0"].isin(self.startypes))
             | (self.snapshot.data["bin_startype1"].isin(self.startypes))
         ]
-        print("number of stars = ", len(stars))
+        logging.info(f"HSTPM: number of stars, prefilter = {len(stars)}")
 
         # inner 100 arcsec only
         rad_lim = (100 * u.arcsec).to(u.pc).value
@@ -304,7 +304,7 @@ class Observations:
             & (stars["tot_obsMag_V"] > 16.0)
             & (stars["d[PC]"] < rad_lim)
         ]
-        print("number of stars = ", len(stars))
+        logging.info(f"HSTPM: number of stars, postfilter = {len(stars)}")
 
         # uncertainty of 0.1 mas/yr
         err = (0.1 * u.Unit("mas/yr")).to(u.km / u.s).value
@@ -369,7 +369,7 @@ class Observations:
             | (self.snapshot.data["bin_startype0"].isin(self.startypes))
             | (self.snapshot.data["bin_startype1"].isin(self.startypes))
         ]
-        print("number of stars = ", len(stars))
+        logging.info(f"GaiaPM: number of stars, prefilter = {len(stars)}")
 
         # select based on G mag, 17 from VHB+2019
         # also only want stars further than 100 arcsec so we dont overlap with HST, TODO: should this be a crowding based selection?
@@ -380,7 +380,7 @@ class Observations:
             & (stars["tot_obsMag_GaiaG"] > 13)
             & (stars["d[PC]"] > rad_lim)
         ]
-        print("number of stars = ", len(stars))
+        logging.info(f"GaiaPM: number of stars, postfilter = {len(stars)}")
 
         err = np.array([gaia_err_func(G) for G in stars["tot_obsMag_GaiaG"]])
 
@@ -442,13 +442,13 @@ class Observations:
         # select only red giants (No Binaries)
         giants = self.snapshot.data.loc[(self.snapshot.data["startype"] == 3)]
 
-        print("number of giants", len(giants))
+        logging.info(f"LOS: number of giants, prefilter = {len(giants)}")
 
         # select only stars with V < 15 VHB+2019
         # TODO: filter short period binaries here?
         giants = giants.loc[giants["obsMag_V"] < 15]
 
-        print("number of giants", len(giants))
+        logging.info(f"LOS: number of giants, postfilter = {len(giants)}")
 
         # uncertainty of 1 km/s
         errs = np.random.normal(loc=0, scale=1, size=len(giants))
@@ -495,11 +495,11 @@ class Observations:
             | (self.snapshot.data["bin_startype0"].isin(self.startypes))
             | (self.snapshot.data["bin_startype1"].isin(self.startypes))
         ]
-        print("number of stars = ", len(stars))
+        logging.info(f"ND: number of stars, prefilter = {len(stars)}")
 
         # select stars brighter than G 20, de Boer+2019
         stars = stars.loc[stars["tot_obsMag_GaiaG"] < 20]
-        print("number of stars = ", len(stars))
+        logging.info(f"ND: number of stars, postfilter = {len(stars)}")
 
         # calculate number of stars per bin given total bins
         stars_per_bin = len(stars) / Nbins
@@ -647,6 +647,11 @@ class Observations:
         F = 3
         new_uncertainties = err * F
         new_heights = np.random.normal(loc=heights, scale=new_uncertainties)
+
+        # print a bunch of debug info
+        logging.info(
+            f"MF: inner radius: {r_in:.2f} arcmin, outer radius: {r_out:.2f} arcmin, ND: {ND:.2f} arcmin^-2, limiting mass: {limiting_mass:.2f} Msun"
+        )
 
         return edges, new_heights, err
 
@@ -811,7 +816,7 @@ class Observations:
 
         # concat the inner and outer annuli
         annuli = inner_annuli + outer_annuli
-        print("Annuli: ", annuli)
+        logging.info(f"MF: Annuli: {annuli}")
 
         r_ins = []
         r_outs = []
@@ -1009,9 +1014,9 @@ class Observations:
 
         MF.read_data(mf_df, keys=keys, units=units, errors=err)
 
-        print(f"{fields = }")
+        logging.info(f"MF: {fields = }")
         fld = fields["CMC"]
-        print(f"{fld = }")
+        logging.info(f"MF: {fld = }")
         MF.add_variable("fields", h5py.Empty("f"), "deg", fld)
         MF.add_metadata("field_unit", "deg")
 
