@@ -581,8 +581,8 @@ class Observations:
                 )
 
         # convert radii to pc
-        r_in = (r_in * u.arcmin).to(u.pc).value
-        r_out = (r_out * u.arcmin).to(u.pc).value
+        r_in_pc = (r_in * u.arcmin).to(u.pc).value
+        r_out_pc = (r_out * u.arcmin).to(u.pc).value
 
         # select main sequence stars, using ms mask
         sel = self.snapshot.data.loc[self.ms_mask]
@@ -592,7 +592,7 @@ class Observations:
         upper = ck.find_MS_TO(t=self.snapshot.age, z=self.snapshot.z)
 
         # select stars in annulus
-        sel = sel.loc[(sel["d[PC]"] > r_in) & (sel["d[PC]"] < r_out)]
+        sel = sel.loc[(sel["d[PC]"] > r_in_pc) & (sel["d[PC]"] < r_out_pc)]
 
         # Here we can just tack on the limiting mass logic
 
