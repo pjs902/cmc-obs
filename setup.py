@@ -9,7 +9,7 @@ setup(  # pragma: no cover
     license="MIT",
     description="Create realistic mock observations from CMC models",
     copyright="Copyright 2023 Peter Smith",
-    python_requires=">=3.10",
+    python_requires=">=3.9",
     version="0.1.0",
     include_package_data=True,
 )

@@ -145,7 +145,7 @@ class Observations:
     def __init__(
         self,
         snapshot,
-        filtindex="/home/peter/research/cmctoolkit/filt_index.txt",
+        filtindex="/home/pjs902/projects/def-vhenault/pjs902/CMC/cmctoolkit/filt_index.txt",
         add_inferred_masses=False,
         cluster_name="CMC",
     ):
@@ -652,6 +652,10 @@ class Observations:
         logging.info(
             f"MF: inner radius: {r_in:.2f} arcmin, outer radius: {r_out:.2f} arcmin, ND: {ND:.2f} arcmin^-2, limiting mass: {limiting_mass:.2f} Msun"
         )
+        print(
+            f"MF: inner radius: {r_in:.2f} arcmin, outer radius: {r_out:.2f} arcmin, ND: {ND:.2f} arcmin^-2, limiting mass: {limiting_mass:.2f} Msun"
+        )
+        print(f"{edges = }, {new_heights = }")
 
         return edges, new_heights, err
 
@@ -838,6 +842,7 @@ class Observations:
             m2s.append(m2.flatten())
             mass_functions.append(mass_function.flatten())
             delta_mass_functions.append(delta_mass_function.flatten())
+            print(f"{m1s = }, {m2s = }, {mass_functions = }")
 
         # need to flatten lists before converting to numpy arrays, not sure why this broke things,
         # somehow related to making arrays from ragged lists and its recent deprecation
