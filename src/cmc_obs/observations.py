@@ -263,6 +263,12 @@ class Observations:
         ]
         logging.info(f"HSTPM: number of stars, postfilter = {len(stars)}")
 
+        # calculate how many stars per bin to use
+        # we want to target 5 bins but require at least 120 stars per bin
+        stars_per_bin = int(np.ceil(len(stars) / 5))
+        stars_per_bin = np.max([stars_per_bin, 120])
+        logging.info(f"HSTPM: stars per bin = {stars_per_bin}")
+
         # uncertainty of 0.1 mas/yr
         err = (0.1 * u.Unit("mas/yr")).to(u.km / u.s).value
         errs = np.ones(len(stars)) * err
@@ -342,6 +348,13 @@ class Observations:
         ]
         logging.info(f"GaiaPM: number of stars, postfilter = {len(stars)}")
 
+        # calculate how many stars per bin to use
+        # we want to target 5 bins but require at least 120 stars per bin
+        stars_per_bin = int(np.ceil(len(stars) / 5))
+        stars_per_bin = np.max([stars_per_bin, 120])
+        logging.info(f"GaiaPM: stars per bin = {stars_per_bin}")
+
+        # Gaia error function
         err = np.array([gaia_err_func(G) for G in stars["tot_obsMag_GaiaG"]])
 
         # convert to km/s
@@ -388,7 +401,6 @@ class Observations:
         ----------
         stars_per_bin : int
             Number of stars per bin. Default is 25 (more is generally better).
-            # TODO: testing 70 here now that we fixed the cuts
 
         Returns
         -------
@@ -418,6 +430,12 @@ class Observations:
 
         # resample based on errors
         kms = np.random.normal(loc=giants["vz[KM/S]"].values, scale=errs)
+
+        # calculate how many stars per bin to use
+        # we want to target 10 bins but require at least 70 stars per bin
+        stars_per_bin = int(np.ceil(len(giants) / 10))
+        stars_per_bin = np.max([stars_per_bin, 70])
+        logging.info(f"LOS: stars per bin = {stars_per_bin}")
 
         # build profile
         bin_centers, sigma, delta_sigma = veldisp_profile(
