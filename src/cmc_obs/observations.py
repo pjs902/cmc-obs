@@ -253,29 +253,35 @@ class Observations:
         rad_lim = (100 * u.arcsec).to(u.pc).value
 
         # select only stars with 16 < V < 17.5 # VHB2019
+
+        # change this to 15 to 18 based on looking at some of the HACKS photometry tables
+
         stars = stars.loc[
-            (stars["tot_obsMag_V"] < 17.5)
-            & (stars["tot_obsMag_V"] > 16.0)
+            (stars["tot_obsMag_V"] < 18)
+            & (stars["tot_obsMag_V"] > 15.0)
             & (stars["d[PC]"] < rad_lim)
         ]
         logging.info(f"HSTPM: number of stars, postfilter = {len(stars)}")
 
         # uncertainty of 0.1 mas/yr
         err = (0.1 * u.Unit("mas/yr")).to(u.km / u.s).value
-        errs = np.random.normal(loc=0, scale=err, size=len(stars))
-        # errs = (np.ones(len(self.snapshot.data)) * err).value
+        errs = np.ones(len(stars)) * err
+
+        # resample based on errors
+        kms_r = np.random.normal(loc=stars["vd[KM/S]"].values, scale=errs)
+        kms_t = np.random.normal(loc=stars["va[KM/S]"].values, scale=errs)
 
         # build profiles
         bin_centers, sigma_r, delta_sigma_r = veldisp_profile(
             x=stars["d[PC]"].values,
-            vi=stars["vd[KM/S]"].values,
+            vi=kms_r,
             ei=errs,
             stars_per_bin=stars_per_bin,
         )
 
         bin_centers, sigma_t, delta_sigma_t = veldisp_profile(
             x=stars["d[PC]"].values,
-            vi=stars["va[KM/S]"].values,
+            vi=kms_t,
             ei=errs,
             stars_per_bin=stars_per_bin,
         )
@@ -326,7 +332,7 @@ class Observations:
         logging.info(f"GaiaPM: number of stars, prefilter = {len(stars)}")
 
         # select based on G mag, 17 from VHB+2019
-        # also only want stars further than 100 arcsec so we dont overlap with HST, TODO: should this be a crowding based selection?
+        # also only want stars further than 100 arcsec so we dont overlap with HST
         # using the 13 mag limit from Vasiliev+Baumgardt+2021 https://arxiv.org/pdf/2102.09568.pdf
         rad_lim = (100 * u.arcsec).to(u.pc).value
         stars = stars.loc[
@@ -374,7 +380,7 @@ class Observations:
 
         return bin_centers, sigma_r, delta_sigma_r, sigma_t, delta_sigma_t, mean_mass
 
-    def LOS_dispersion(self, stars_per_bin=25):
+    def LOS_dispersion(self, stars_per_bin=70):
         """
         Simulate LOS velocity dispersion measurements with performance based on VHB+2019.
 
@@ -382,6 +388,7 @@ class Observations:
         ----------
         stars_per_bin : int
             Number of stars per bin. Default is 25 (more is generally better).
+            # TODO: testing 70 here now that we fixed the cuts
 
         Returns
         -------
@@ -393,24 +400,29 @@ class Observations:
             Array of velocity dispersion uncertainties, units of km/s.
         """
 
-        # select only red giants (No Binaries)
-        giants = self.snapshot.data.loc[(self.snapshot.data["startype"] == 3)]
+        # select only giants (No Binaries)
+        giants = self.snapshot.data.loc[
+            (self.snapshot.data["startype"].isin([3, 4, 5, 6]))
+        ]
 
         logging.info(f"LOS: number of giants, prefilter = {len(giants)}")
 
         # select only stars with V < 15 VHB+2019
-        # TODO: filter short period binaries here?
-        giants = giants.loc[giants["obsMag_V"] < 15]
+        # change this to G mag 17 based on Holger's compilations
+        giants = giants.loc[giants["obsMag_GaiaG"] < 17]
 
         logging.info(f"LOS: number of giants, postfilter = {len(giants)}")
 
-        # uncertainty of 1 km/s
-        errs = np.random.normal(loc=0, scale=1, size=len(giants))
+        # generate errors drawn from a gaussian with sigma = 1 km/s
+        errs = np.ones(len(giants)) * 1
+
+        # resample based on errors
+        kms = np.random.normal(loc=giants["vz[KM/S]"].values, scale=errs)
 
         # build profile
         bin_centers, sigma, delta_sigma = veldisp_profile(
             x=giants["d[PC]"].values,
-            vi=giants["vz[KM/S]"].values,
+            vi=kms,
             ei=errs,
             stars_per_bin=stars_per_bin,
         )
@@ -499,7 +511,7 @@ class Observations:
 
         return bin_centers, number_density, delta_number_density, mean_mass
 
-    def mass_function(self, r_in, r_out, inferred_mass=False, bins=10):
+    def mass_function(self, r_in, r_out, bins=10):
         """
         Extract the mass function in a given annulus.
 
