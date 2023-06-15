@@ -869,7 +869,7 @@ class Observations:
         LOS.read_data(LOS_fn, delim=r",", keys=keys, units=units, errors=err)
         # LOS.add_metadata("m", float(metadata["los_mean_mass"]))
 
-        LOS.add_metadata("source", "CMC-obs")
+        LOS.add_metadata("source", "LOS Data")
         cf.add_dataset(LOS)
 
         # Now the proper motion data
@@ -896,7 +896,7 @@ class Observations:
             Hubble_fn, delim=r",", keys=keys, units=units, errors=err, names=names
         )
         # PM.add_metadata("m", float(metadata["hubble_mean_mass"]))
-        PM.add_metadata("source", "CMC-obs")
+        PM.add_metadata("source", "HST")
 
         cf.add_dataset(PM)
 
@@ -922,7 +922,7 @@ class Observations:
 
         # PM.add_metadata("m", float(metadata["gaia_mean_mass"]))
 
-        PM.add_metadata("source", "CMC-obs")
+        PM.add_metadata("source", "Gaia")
         cf.add_dataset(PM)
 
         # now the number density data
@@ -942,7 +942,7 @@ class Observations:
         bg = 0.0
         ND.add_metadata("background", bg)
 
-        ND.add_metadata("source", "CMC-obs")
+        ND.add_metadata("source", "Gaia + HST")
         cf.add_dataset(ND)
 
         # now the mass function data
@@ -968,7 +968,7 @@ class Observations:
         MF.add_variable("fields", h5py.Empty("f"), "deg", fld)
         MF.add_metadata("field_unit", "deg")
 
-        MF.add_metadata("source", "CMC-obs")
+        MF.add_metadata("source", "HST")
         MF.add_metadata("proposal", "CMC-obs")
         cf.add_dataset(MF)
 
