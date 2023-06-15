@@ -1,12 +1,10 @@
 import numpy as np
 import scipy as sp
 from scipy.optimize import fsolve
-from tqdm import trange
 from gcfit.util import angular_width
 import astropy.units as u
 import cmctoolkit as ck
 import logging
-import ezmist
 import pandas as pd
 import json
 
@@ -146,7 +144,6 @@ class Observations:
         self,
         snapshot,
         filtindex="/home/pjs902/projects/def-vhenault/pjs902/CMC/cmctoolkit/filt_index.txt",
-        add_inferred_masses=False,
         cluster_name="CMC",
     ):
         """
@@ -174,38 +171,7 @@ class Observations:
         filttable = ck.load_filtertable(filtindex)
         self.snapshot.add_photometry(filttable)
 
-        # set inferred masses flag
-        self.inferred_masses = add_inferred_masses
-
         self.cluster_name = cluster_name
-
-        # get isochrone, if add_inferred_masses is True
-        if add_inferred_masses:
-            self.isochrone = ezmist.get_one_isochrone(
-                age=self.snapshot.age * 1e9,
-                FeH=np.log10(self.snapshot.z / 0.02),
-                v_div_vcrit=0.0,
-                age_scale="linear",
-                output_option="photometry",
-                output="HST_WFC3",
-            ).to_pandas()[
-                0:200
-            ]  # TODO: this is a hack, stop at MSTO
-
-            lum_to_mass = sp.interpolate.interp1d(
-                x=self.isochrone.WFC3_UVIS_F814W,
-                y=self.isochrone.star_mass,
-                kind="linear",
-                bounds_error=False,
-                fill_value="extrapolate",
-            )
-
-            # add inferred masses to main-sequence stars, nan otherwise
-            self.snapshot.data["inferred_mass"] = np.nan
-
-            # get upper and lower mass limits of isochrone
-            min_mass = np.min(self.isochrone.star_mass)
-            max_mass = np.max(self.isochrone.star_mass)
 
         # get main-sequence stars
         ms_mask = (
@@ -213,19 +179,7 @@ class Observations:
             | (self.snapshot.data["bin_startype0"].isin([0, 1]))
             | (self.snapshot.data["bin_startype1"].isin([0, 1]))
         )
-
-        # filter based on mass limits, if add_inferred_masses is True
-        if add_inferred_masses:
-            ms_mask = ms_mask & (self.snapshot.data["m[MSUN]"] < max_mass)
-            ms_mask = ms_mask & (self.snapshot.data["m[MSUN]"] > min_mass)
-
         self.ms_mask = ms_mask
-
-        # add inferred masses to main-sequence stars, if add_inferred_masses is True
-        if self.inferred_masses:
-            self.snapshot.data.loc[ms_mask, "inferred_mass"] = lum_to_mass(
-                self.snapshot.data.loc[ms_mask, "tot_absMag_WFC3F814W"]
-            )
 
         # startypes for main-sequence stars and giants
         self.startypes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
@@ -555,10 +509,6 @@ class Observations:
             Inner radius of annulus, units of arcmin.
         r_out : float
             Outer radius of annulus, units of arcmin.
-        observed_mass : bool (optional)
-            If True, use observed masses based on a MIST isochrone. If False, use
-            true masses. Default is False. Requires that the snapshot has been
-            initialized with `add_inferred_masses=True`.
         bins : int (optional)
             Number of bins to use for mass function. Default is 10.
 
@@ -571,14 +521,6 @@ class Observations:
         delta_mass_function : array_like
             Array of mass function uncertainties, units of Msun^-1.
         """
-
-        # check if inferred masses have been added
-        if inferred_mass:
-            if not self.inferred_masses:
-                raise ValueError(
-                    "Inferred masses have not been added to snapshot. "
-                    "Initialize snapshot with `add_inferred_masses=True`."
-                )
 
         # convert radii to pc
         r_in_pc = (r_in * u.arcmin).to(u.pc).value
@@ -628,19 +570,9 @@ class Observations:
         # need to update number of bins based on new mass limits
         bins = int(np.ceil((upper - lower) / 0.1))
 
-        # calculate mass function
-        if inferred_mass:
-            heights, edges = np.histogram(
-                a=sel["inferred_mass"], bins=bins, range=(lower, upper)
-            )
-            # centers = [(edges[i] + edges[i + 1]) / 2 for i in range(len(edges) - 1)]
-            err = np.sqrt(heights)
-        else:
-            heights, edges = np.histogram(
-                a=sel["m[MSUN]"], bins=bins, range=(lower, upper)
-            )
-            # centers = [(edges[i] + edges[i + 1]) / 2 for i in range(len(edges) - 1)]
-            err = np.sqrt(heights)
+        heights, edges = np.histogram(a=sel["m[MSUN]"], bins=bins, range=(lower, upper))
+        # centers = [(edges[i] + edges[i + 1]) / 2 for i in range(len(edges) - 1)]
+        err = np.sqrt(heights)
 
         # need to add some scatter for realism
         # adopt F=3
@@ -652,10 +584,6 @@ class Observations:
         logging.info(
             f"MF: inner radius: {r_in:.2f} arcmin, outer radius: {r_out:.2f} arcmin, ND: {ND:.2f} arcmin^-2, limiting mass: {limiting_mass:.2f} Msun"
         )
-        print(
-            f"MF: inner radius: {r_in:.2f} arcmin, outer radius: {r_out:.2f} arcmin, ND: {ND:.2f} arcmin^-2, limiting mass: {limiting_mass:.2f} Msun"
-        )
-        print(f"{edges = }, {new_heights = }")
 
         return edges, new_heights, err
 
@@ -831,7 +759,7 @@ class Observations:
 
         for i in range(len(annuli)):
             mass_edges, mass_function, delta_mass_function = self.mass_function(
-                r_in=annuli[i][0], r_out=annuli[i][1], inferred_mass=False
+                r_in=annuli[i][0], r_out=annuli[i][1]
             )
             for _ in range(len(mass_function)):
                 r_ins.append(annuli[i][0])
@@ -842,7 +770,6 @@ class Observations:
             m2s.append(m2.flatten())
             mass_functions.append(mass_function.flatten())
             delta_mass_functions.append(delta_mass_function.flatten())
-            print(f"{m1s = }, {m2s = }, {mass_functions = }")
 
         # need to flatten lists before converting to numpy arrays, not sure why this broke things,
         # somehow related to making arrays from ragged lists and its recent deprecation
@@ -897,9 +824,9 @@ class Observations:
         # first, write out the data just in case it hasn't been done yet
         self.write_obs()
 
-        # read metadata
-        with open(f"{self.cluster_name}_metadata.json", "r", encoding="utf8") as f:
-            metadata = json.load(f)
+        # read metadata (unneeded for now, was used to set mean masses of datasets)
+        # with open(f"{self.cluster_name}_metadata.json", "r", encoding="utf8") as f:
+        #     metadata = json.load(f)
 
         # initialize datafile
         cf = ClusterFile(cluster_name, force_new=True)
@@ -930,6 +857,7 @@ class Observations:
         LOS.read_data(LOS_fn, delim=r",", keys=keys, units=units, errors=err)
         # LOS.add_metadata("m", float(metadata["los_mean_mass"]))
 
+        LOS.add_metadata("source", "CMC-obs")
         cf.add_dataset(LOS)
 
         # Now the proper motion data
@@ -956,6 +884,7 @@ class Observations:
             Hubble_fn, delim=r",", keys=keys, units=units, errors=err, names=names
         )
         # PM.add_metadata("m", float(metadata["hubble_mean_mass"]))
+        PM.add_metadata("source", "CMC-obs")
 
         cf.add_dataset(PM)
 
@@ -981,6 +910,7 @@ class Observations:
 
         # PM.add_metadata("m", float(metadata["gaia_mean_mass"]))
 
+        PM.add_metadata("source", "CMC-obs")
         cf.add_dataset(PM)
 
         # now the number density data
@@ -1000,6 +930,7 @@ class Observations:
         bg = 0.0
         ND.add_metadata("background", bg)
 
+        ND.add_metadata("source", "CMC-obs")
         cf.add_dataset(ND)
 
         # now the mass function data
