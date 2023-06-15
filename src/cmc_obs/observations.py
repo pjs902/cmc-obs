@@ -402,7 +402,7 @@ class Observations:
 
         # select only giants (No Binaries)
         giants = self.snapshot.data.loc[
-            (self.snapshot.data["startype"].isin([3, 4, 5, 6]))
+            (self.snapshot.data["startype"].isin([3, 4, 5, 6, 7, 8]))
         ]
 
         logging.info(f"LOS: number of giants, prefilter = {len(giants)}")
