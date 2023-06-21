@@ -337,12 +337,12 @@ class Observations:
         ]
         logging.info(f"GaiaPM: number of stars, prefilter = {len(stars)}")
 
-        # select based on G mag, 17 from VHB+2019
+        # select based on G mag
         # also only want stars further than 100 arcsec so we dont overlap with HST
-        # using the 13 mag limit from Vasiliev+Baumgardt+2021 https://arxiv.org/pdf/2102.09568.pdf
+        # using the 21>G>13 mag limit from Vasiliev+Baumgardt+2021 https://arxiv.org/pdf/2102.09568.pdf
         rad_lim = (100 * u.arcsec).to(u.pc).value
         stars = stars.loc[
-            (stars["tot_obsMag_GaiaG"] < 17)
+            (stars["tot_obsMag_GaiaG"] < 21)
             & (stars["tot_obsMag_GaiaG"] > 13)
             & (stars["d[PC]"] > rad_lim)
         ]
