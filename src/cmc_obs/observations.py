@@ -48,7 +48,8 @@ def comp_veldisp(vi, ei):
     guess_sigma_c = np.std(vi)
     guess_vbar = np.mean(vi)  # use sample mean as initial guess for solution
 
-    root = fsolve(func, [guess_sigma_c, guess_vbar], factor=0.1, maxfev=1000)
+    # root = fsolve(func, [guess_sigma_c, guess_vbar], factor=0.1, maxfev=1000)
+    root = fsolve(func, [guess_sigma_c, guess_vbar], factor=1.0, maxfev=5000)
     # print("root = ", root)
 
     # assert np.isclose(func(root), [0.0, 0.0])  # func(root) should be almost 0.0.
@@ -252,9 +253,7 @@ class Observations:
         # inner 100 arcsec only
         rad_lim = (100 * u.arcsec).to(u.pc).value
 
-        # select only stars with 16 < V < 17.5 # VHB2019
-
-        # change this to 15 to 18 based on looking at some of the HACKS photometry tables
+        # select only stars with V 15 to 18 based on looking at some of the HACKS photometry tables
 
         stars = stars.loc[
             (stars["tot_obsMag_V"] < 18)
@@ -328,8 +327,9 @@ class Observations:
         delta_sigma_t : array_like
             Array of velocity dispersion uncertainties in the tangential direction, units of mas/yr.
         """
-        # select MS stars
 
+
+        # select MS stars
         stars = self.snapshot.data.loc[
             (self.snapshot.data["startype"].isin(self.startypes))
             | (self.snapshot.data["bin_startype0"].isin(self.startypes))
@@ -400,7 +400,7 @@ class Observations:
         Parameters
         ----------
         stars_per_bin : int
-            Number of stars per bin. Default is 25 (more is generally better).
+            Number of stars per bin. Default is 70 (more is generally better).
 
         Returns
         -------
@@ -412,21 +412,20 @@ class Observations:
             Array of velocity dispersion uncertainties, units of km/s.
         """
 
-        # select only giants (No Binaries)
+        # select only giants (No Binaries, there is some filtering in the real data, not sure we want to get into that)
         giants = self.snapshot.data.loc[
             (self.snapshot.data["startype"].isin([3, 4, 5, 6, 7, 8]))
         ]
 
         logging.info(f"LOS: number of giants, prefilter = {len(giants)}")
 
-        # select only stars with V < 15 VHB+2019
-        # change this to G mag 17 based on Holger's compilations
+        # select only stars with G mag <17 based on Holger's compilations
         giants = giants.loc[giants["obsMag_GaiaG"] < 17]
 
         logging.info(f"LOS: number of giants, postfilter = {len(giants)}")
 
         # generate errors drawn from a gaussian with sigma = 1 km/s
-        errs = np.ones(len(giants)) * 1
+        errs = np.ones(len(giants)) * 1.0
 
         # resample based on errors
         kms = np.random.normal(loc=giants["vz[KM/S]"].values, scale=errs)
@@ -459,7 +458,7 @@ class Observations:
         Parameters
         ----------
         Nbins : int
-            Number of bins. Default is 50 (less may be prefferable for undersampled clusters)
+            Number of bins. Default is 50.
 
         Returns
         -------
@@ -601,7 +600,6 @@ class Observations:
         bins = int(np.ceil((upper - lower) / 0.1))
 
         heights, edges = np.histogram(a=sel["m[MSUN]"], bins=bins, range=(lower, upper))
-        # centers = [(edges[i] + edges[i + 1]) / 2 for i in range(len(edges) - 1)]
         err = np.sqrt(heights)
 
         # need to add some scatter for realism
