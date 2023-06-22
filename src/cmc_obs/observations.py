@@ -655,7 +655,7 @@ class Observations:
         df = df.dropna()
 
         # write to file
-        df.to_csv("hubble_pm.csv", index=False, header=True)
+        df.to_csv(f"./raw_data/{self.cluster_name}_hubble_pm.csv", index=False, header=True)
         metadata["hubble_mean_mass"] = mean_mass
 
         # Gaia PM
@@ -690,7 +690,7 @@ class Observations:
         df = df.dropna()
 
         # write to file
-        df.to_csv("gaia_pm.csv", index=False, header=True)
+        df.to_csv(f"./raw_data/{self.cluster_name}_gaia_pm.csv", index=False, header=True)
         metadata["gaia_mean_mass"] = mean_mass
 
         # LOS Dispersion
@@ -714,7 +714,7 @@ class Observations:
         df = df.dropna()
 
         # write to file
-        df.to_csv("los_dispersion.csv", index=False, header=True)
+        df.to_csv(f"./raw_data/{self.cluster_name}_los_dispersion.csv", index=False, header=True)
         metadata["los_mean_mass"] = mean_mass
 
         # Number Density
@@ -742,7 +742,7 @@ class Observations:
         df = df.dropna()
 
         # write to file
-        df.to_csv("number_density.csv", index=False, header=True)
+        df.to_csv(f"./raw_data/{self.cluster_name}_number_density.csv", index=False, header=True)
         metadata["number_mean_mass"] = mean_mass
 
         # Mass Function
@@ -838,7 +838,7 @@ class Observations:
         df = df.dropna()
 
         # write to file
-        df.to_csv("mass_function.csv", index=False, header=True)
+        df.to_csv(f"./raw_data/{self.cluster_name}_mass_function.csv", index=False, header=True)
 
         # save metadata
         with open(f"{self.cluster_name}_metadata.json", "w", encoding="utf8") as f:
@@ -874,7 +874,7 @@ class Observations:
 
         # start with radial velocity data
 
-        LOS_fn = pathlib.Path("./los_dispersion.csv")
+        LOS_fn = pathlib.Path(f"./raw_data/{self.cluster_name}_los_dispersion.csv")
 
         err = {"Δσ": "σ"}
         units = {"r": "arcsec", "σ": "km/s", "Δσ": "km/s"}
@@ -892,7 +892,7 @@ class Observations:
 
         # start with the Hubble data
 
-        Hubble_fn = "hubble_pm.csv"
+        Hubble_fn = pathlib.Path(f"./raw_data/{self.cluster_name}_hubble_pm.csv")
 
         # keys = 'r', 'σ_tot', 'Δσ_tot', 'σ_R', 'Δσ_R', 'σ_T', 'Δσ_T'
         keys = "r", "σ_R", "Δσ_R", "σ_T", "Δσ_T"
@@ -917,7 +917,7 @@ class Observations:
         cf.add_dataset(PM)
 
         # Now the Gaia data
-        Gaia_fn = pathlib.Path("./gaia_pm.csv")
+        Gaia_fn = pathlib.Path(f"./raw_data/{self.cluster_name}_gaia_pm.csv")
 
         keys = "r", "σ_R", "Δσ_R", "σ_T", "Δσ_T"
 
@@ -943,7 +943,7 @@ class Observations:
 
         # now the number density data
 
-        ND_fn = pathlib.Path("./number_density.csv")
+        ND_fn = pathlib.Path(f"./raw_data/{self.cluster_name}_number_density.csv")
 
         units = {"rad": "arcmin", "density": "1/arcmin2", "density_err": "1/arcmin2"}
         names = {"rad": "r", "density": "Σ"}
@@ -974,7 +974,7 @@ class Observations:
             )
         }
         MF = Dataset("mass_function/CMC")
-        mf_df = pd.read_csv("mass_function.csv")
+        mf_df = pd.read_csv(f"./raw_data/{self.cluster_name}_mass_function.csv")
 
         MF.read_data(mf_df, keys=keys, units=units, errors=err)
 
