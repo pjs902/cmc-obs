@@ -327,7 +327,6 @@ class Observations:
             Array of velocity dispersion uncertainties in the tangential direction, units of mas/yr.
         """
 
-
         # select MS stars
         stars = self.snapshot.data.loc[
             (self.snapshot.data["startype"].isin(self.startypes))
@@ -349,8 +348,17 @@ class Observations:
 
         # calculate how many stars per bin to use
         # we want to target 5 bins but require at least 120 stars per bin
+
+        # minimum of 120 stars per bin
+        # if we have more than 2400 stars, use 10 bins
+
         stars_per_bin = int(np.ceil(len(stars) / 5))
         stars_per_bin = np.max([stars_per_bin, 120])
+
+        if len(stars) > 2400:
+            stars_per_bin = int(np.ceil(len(stars) / 10))
+            stars_per_bin = np.max([stars_per_bin, 120])
+
         logging.info(f"GaiaPM: stars per bin = {stars_per_bin}")
 
         # Gaia error function
@@ -654,7 +662,9 @@ class Observations:
         df = df.dropna()
 
         # write to file
-        df.to_csv(f"./raw_data/{self.cluster_name}_hubble_pm.csv", index=False, header=True)
+        df.to_csv(
+            f"./raw_data/{self.cluster_name}_hubble_pm.csv", index=False, header=True
+        )
         metadata["hubble_mean_mass"] = mean_mass
 
         # Gaia PM
@@ -689,7 +699,9 @@ class Observations:
         df = df.dropna()
 
         # write to file
-        df.to_csv(f"./raw_data/{self.cluster_name}_gaia_pm.csv", index=False, header=True)
+        df.to_csv(
+            f"./raw_data/{self.cluster_name}_gaia_pm.csv", index=False, header=True
+        )
         metadata["gaia_mean_mass"] = mean_mass
 
         # LOS Dispersion
@@ -713,7 +725,11 @@ class Observations:
         df = df.dropna()
 
         # write to file
-        df.to_csv(f"./raw_data/{self.cluster_name}_los_dispersion.csv", index=False, header=True)
+        df.to_csv(
+            f"./raw_data/{self.cluster_name}_los_dispersion.csv",
+            index=False,
+            header=True,
+        )
         metadata["los_mean_mass"] = mean_mass
 
         # Number Density
@@ -741,7 +757,11 @@ class Observations:
         df = df.dropna()
 
         # write to file
-        df.to_csv(f"./raw_data/{self.cluster_name}_number_density.csv", index=False, header=True)
+        df.to_csv(
+            f"./raw_data/{self.cluster_name}_number_density.csv",
+            index=False,
+            header=True,
+        )
         metadata["number_mean_mass"] = mean_mass
 
         # Mass Function
@@ -837,7 +857,11 @@ class Observations:
         df = df.dropna()
 
         # write to file
-        df.to_csv(f"./raw_data/{self.cluster_name}_mass_function.csv", index=False, header=True)
+        df.to_csv(
+            f"./raw_data/{self.cluster_name}_mass_function.csv",
+            index=False,
+            header=True,
+        )
 
         # save metadata
         with open(f"{self.cluster_name}_metadata.json", "w", encoding="utf8") as f:
