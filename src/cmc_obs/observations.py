@@ -48,8 +48,7 @@ def comp_veldisp(vi, ei):
     guess_sigma_c = np.std(vi)
     guess_vbar = np.mean(vi)  # use sample mean as initial guess for solution
 
-    # root = fsolve(func, [guess_sigma_c, guess_vbar], factor=0.1, maxfev=1000)
-    root = fsolve(func, [guess_sigma_c, guess_vbar], factor=1.0, maxfev=5000)
+    root = fsolve(func, [guess_sigma_c, guess_vbar], factor=0.1, maxfev=10000)
     # print("root = ", root)
 
     # assert np.isclose(func(root), [0.0, 0.0])  # func(root) should be almost 0.0.
