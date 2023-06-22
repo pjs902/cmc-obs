@@ -12,8 +12,18 @@ from gcfit.util.data import ClusterFile, Dataset
 import pathlib
 import h5py
 
+import jax
+import jax.numpy as jnp
+import blackjax
 
-def comp_veldisp(vi, ei):
+# jax setup
+jax.config.update("jax_enable_x64", True)
+rng_key = jax.random.PRNGKey(137)
+
+from functools import partial
+
+
+def comp_veldisp_MLE(vi, ei, guess_sigma_c=None, guess_vbar=None):
     """
     (from Rebecca)
     Compute velocity dispersion and uncertainty using maximum-likelihood method
@@ -44,16 +54,7 @@ def comp_veldisp(vi, ei):
 
         return [eq1_1 - eq1_2, eq2_1 - eq2_2]
 
-    # use sample standard deviation as initial guess for solution
-    guess_sigma_c = np.std(vi)
-    guess_vbar = np.mean(vi)  # use sample mean as initial guess for solution
-
-    print("guess_sigma_c = ", guess_sigma_c)
-    print("guess_vbar = ", guess_vbar)
-
-
     root = fsolve(func, [guess_sigma_c, guess_vbar], factor=0.1, maxfev=10000)
-    print("root = ", root)
 
     # assert np.isclose(func(root), [0.0, 0.0])  # func(root) should be almost 0.0.
 
@@ -64,11 +65,11 @@ def comp_veldisp(vi, ei):
 
     I_22 = np.sum(
         1.0 / (sigma_c**2 + ei**2)
-        - ((vi - vbar) ** 2 + 2.0 * sigma_c**2) / (sigma_c**2 + ei**2) ** 2
-        + 4.0 * sigma_c**2 * (vi - vbar) ** 2 / (sigma_c**2 + ei**2) ** 3
+        - ((vi - vbar) ** 2 + (2.0 * (sigma_c**2))) / ((sigma_c**2 + ei**2) ** 2)
+        + 4.0 * (sigma_c**2) * ((vi - vbar) ** 2) / (sigma_c**2 + ei**2) ** 3
     )
 
-    I_12 = np.sum(2.0 * sigma_c * (vi - vbar) / (sigma_c**2 + ei**2) ** 2)
+    I_12 = np.sum((2.0 * sigma_c * (vi - vbar)) / ((sigma_c**2 + ei**2) ** 2))
 
     var_vbar = I_22 / (I_11 * I_22 - I_12**2)
     error_vbar = np.sqrt(var_vbar)
@@ -80,6 +81,66 @@ def comp_veldisp(vi, ei):
     # print("sigma_c = ", sigma_c, " +/- ", error_sigma_c)
 
     return ((sigma_c), (error_sigma_c))
+
+
+# heres all the jax stuff for the full MCMC dispersion profile
+
+# likelihood function
+def logp(mu, sigma, data, errs):
+    return -0.5 * jnp.sum(
+        jnp.log(sigma**2 + errs**2)
+        + (((data - mu) ** 2) / (sigma**2 + errs**2))
+    )
+
+# log posterior
+@jax.jit
+def logL(theta, data, errs):
+    mu, sigma = theta["mu"], theta["sigma"]
+
+    prior = jax.scipy.stats.uniform.logpdf(loc=-500, scale=1000, x=mu) + jax.scipy.stats.uniform.logpdf(loc=0, scale=50, x=sigma)#
+
+    return logp(mu, sigma, data, errs) + prior
+
+
+def inference_loop(rng_key, kernel, initial_state, num_samples):
+    @jax.jit
+    def one_step(state, rng_key):
+        state, _ = kernel(rng_key, state)
+        return state, state
+
+    keys = jax.random.split(rng_key, num_samples)
+    _, states = jax.lax.scan(one_step, initial_state, keys)
+
+    return states
+
+
+def comp_veldisp(vi, ei):
+    # sampler parameters
+    inv_mass_matrix = np.array([0.5, 0.01])
+    step_size = 1e-3
+
+    # log likelihood with data frozen in
+    like = partial(logL, data=vi, errs=ei)
+
+    # kernel
+    nuts = blackjax.nuts(like, step_size, inv_mass_matrix)
+
+    # initial pos
+    initial_position = {"mu": jnp.mean(vi), "sigma": jnp.std(vi)}
+    initial_state = nuts.init(initial_position)
+
+    # do warm up
+    warmup = blackjax.window_adaptation(blackjax.nuts, like, num_steps=1000)
+    state, kernel, _ = warmup.run(rng_key, initial_position)
+
+    # do inference
+    states = inference_loop(rng_key, kernel, state, 1_000)
+
+    # get samples
+    mu_samples = states.position["mu"].block_until_ready()
+    sigma_samples = states.position["sigma"]
+
+    return np.mean(sigma_samples), np.std(sigma_samples)
 
 
 def veldisp_profile(x, vi, ei, stars_per_bin=15):
@@ -351,15 +412,9 @@ class Observations:
         logging.info(f"GaiaPM: number of stars, postfilter = {len(stars)}")
 
         # calculate how many stars per bin to use
-        # we want to target 5 bins but require at least 120 stars per bin
-        # use up to 7 bins if we have more than 2400 stars
-
+        # require at least 120 stars per bin, target 5 bins
         stars_per_bin = int(np.ceil(len(stars) / 5))
         stars_per_bin = np.max([stars_per_bin, 120])
-
-        if len(stars) > 2400:
-            stars_per_bin = int(np.ceil(len(stars) / 7))
-            stars_per_bin = np.max([stars_per_bin, 120])
 
         logging.info(f"GaiaPM: stars per bin = {stars_per_bin}")
 
