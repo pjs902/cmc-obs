@@ -48,8 +48,12 @@ def comp_veldisp(vi, ei):
     guess_sigma_c = np.std(vi)
     guess_vbar = np.mean(vi)  # use sample mean as initial guess for solution
 
+    print("guess_sigma_c = ", guess_sigma_c)
+    print("guess_vbar = ", guess_vbar)
+
+
     root = fsolve(func, [guess_sigma_c, guess_vbar], factor=0.1, maxfev=10000)
-    # print("root = ", root)
+    print("root = ", root)
 
     # assert np.isclose(func(root), [0.0, 0.0])  # func(root) should be almost 0.0.
 
@@ -348,15 +352,13 @@ class Observations:
 
         # calculate how many stars per bin to use
         # we want to target 5 bins but require at least 120 stars per bin
-
-        # minimum of 120 stars per bin
-        # if we have more than 2400 stars, use 10 bins
+        # use up to 7 bins if we have more than 2400 stars
 
         stars_per_bin = int(np.ceil(len(stars) / 5))
         stars_per_bin = np.max([stars_per_bin, 120])
 
         if len(stars) > 2400:
-            stars_per_bin = int(np.ceil(len(stars) / 10))
+            stars_per_bin = int(np.ceil(len(stars) / 7))
             stars_per_bin = np.max([stars_per_bin, 120])
 
         logging.info(f"GaiaPM: stars per bin = {stars_per_bin}")
