@@ -85,6 +85,7 @@ def comp_veldisp_MLE(vi, ei, guess_sigma_c=None, guess_vbar=None):
 
 # heres all the jax stuff for the full MCMC dispersion profile
 
+
 # likelihood function
 def logp(mu, sigma, data, errs):
     return -0.5 * jnp.sum(
@@ -92,12 +93,22 @@ def logp(mu, sigma, data, errs):
         + (((data - mu) ** 2) / (sigma**2 + errs**2))
     )
 
+
 # log posterior
 @jax.jit
 def logL(theta, data, errs):
     mu, sigma = theta["mu"], theta["sigma"]
 
-    prior = jax.scipy.stats.uniform.logpdf(loc=-500, scale=1000, x=mu) + jax.scipy.stats.uniform.logpdf(loc=0, scale=50, x=sigma)#
+    # get mean and std of data
+    mu_data = jnp.mean(data)
+    sigma_data = jnp.std(data)
+
+    # uniform priors around the data mean and std
+    prior = jax.scipy.stats.uniform.logpdf(
+        loc=mu_data - 10, scale=20, x=mu
+    ) + jax.scipy.stats.uniform.logpdf(loc=0, scale=20, x=sigma)
+
+    # prior = jax.scipy.stats.uniform.logpdf(loc=-500, scale=1000, x=mu) + jax.scipy.stats.uniform.logpdf(loc=0, scale=50, x=sigma)
 
     return logp(mu, sigma, data, errs) + prior
 
@@ -405,7 +416,7 @@ class Observations:
         # using the 21>G>13 mag limit from Vasiliev+Baumgardt+2021 https://arxiv.org/pdf/2102.09568.pdf
         rad_lim = (100 * u.arcsec).to(u.pc).value
         stars = stars.loc[
-            (stars["tot_obsMag_GaiaG"] < 21)
+            (stars["tot_obsMag_GaiaG"] < 19)
             & (stars["tot_obsMag_GaiaG"] > 13)
             & (stars["d[PC]"] > rad_lim)
         ]
