@@ -86,7 +86,7 @@ def comp_veldisp_MLE(vi, ei, guess_sigma_c=None, guess_vbar=None):
 # heres all the jax stuff for the full MCMC dispersion profile
 
 
-# likelihood function
+# likelihood function for points with gaussian errors drawn from a gaussian (eq 5.64 in astroML book)
 def logp(mu, sigma, data, errs):
     return -0.5 * jnp.sum(
         jnp.log(sigma**2 + errs**2)
@@ -99,7 +99,7 @@ def logp(mu, sigma, data, errs):
 def logL(theta, data, errs):
     mu, sigma = theta["mu"], theta["sigma"]
 
-    # get mean and std of data
+    # get mean and std of data to set priors
     mu_data = jnp.mean(data)
     sigma_data = jnp.std(data)
 
@@ -133,12 +133,8 @@ def comp_veldisp(vi, ei):
     # log likelihood with data frozen in
     like = partial(logL, data=vi, errs=ei)
 
-    # kernel
-    nuts = blackjax.nuts(like, step_size, inv_mass_matrix)
-
     # initial pos
     initial_position = {"mu": jnp.mean(vi), "sigma": jnp.std(vi)}
-    initial_state = nuts.init(initial_position)
 
     # do warm up
     warmup = blackjax.window_adaptation(blackjax.nuts, like, num_steps=1000)
@@ -264,7 +260,7 @@ class Observations:
         self.snapshot.data = self.snapshot.data.sort_values(by="d[PC]")
 
         # BH info
-        self.snapshot.bh_radii = pd.concat(
+        self.snapshot.bh_radii_proj = pd.concat(
             [
                 self.snapshot.data.loc[(self.snapshot.data["startype"] == 14)]["d[PC]"],
                 self.snapshot.data.loc[(self.snapshot.data["bin_startype0"] == 14)][
@@ -277,6 +273,18 @@ class Observations:
             axis=0,
         ).to_list()
 
+        self.snapshot.bh_radii_3d = pd.concat(
+            [
+                self.snapshot.data.loc[(self.snapshot.data["startype"] == 14)]["r[PC]"],
+                self.snapshot.data.loc[(self.snapshot.data["bin_startype0"] == 14)][
+                    "r[PC]"
+                ],
+                self.snapshot.data.loc[(self.snapshot.data["bin_startype1"] == 14)][
+                    "r[PC]"
+                ],
+            ],
+            axis=0,
+        ).to_list()
         self.snapshot.bh_masses = pd.concat(
             [
                 self.snapshot.data.loc[(self.snapshot.data["startype"] == 14)][
@@ -1101,8 +1109,8 @@ class Observations:
         info["BH_total_mass"] = self.snapshot.M_BH
         info["BH_total_number"] = self.snapshot.N_BH
         info["BH_masses"] = self.snapshot.bh_masses
-        # note these BH radii are projected
-        info["BH_radii"] = self.snapshot.bh_radii
+        info["BH_radii_proj"] = self.snapshot.bh_radii_proj
+        info["BH_radii_3d"] = self.snapshot.bh_radii_3d
         info["vesc_initial"] = self.snapshot.vesc_initial
         info["vesc_final"] = self.snapshot.vesc_final
 
