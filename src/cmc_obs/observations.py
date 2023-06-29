@@ -941,7 +941,7 @@ class Observations:
 
         # save metadata
         with open(f"{self.cluster_name}_metadata.json", "w", encoding="utf8") as f:
-            json.dump(metadata, f)
+            json.dump(metadata, f, indent=4)
 
     def create_datafile(self, cluster_name):
         """
@@ -1116,7 +1116,7 @@ class Observations:
 
         # write the data
         with open(f"{self.cluster_name}_cluster_info.json", "w", encoding="utf8") as f:
-            json.dump(info, f)
+            json.dump(info, f, indent=4)
 
 
 def gaia_err_func(G):
