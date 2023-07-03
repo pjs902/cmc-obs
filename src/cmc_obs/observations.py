@@ -1,26 +1,24 @@
-import numpy as np
-import scipy as sp
-from scipy.optimize import fsolve
-from gcfit.util import angular_width
-import astropy.units as u
-import cmctoolkit as ck
-import logging
-import pandas as pd
 import json
-
-from gcfit.util.data import ClusterFile, Dataset
+import logging
 import pathlib
-import h5py
+from functools import partial
 
+import astropy.units as u
+import blackjax
+import cmctoolkit as ck
+import h5py
 import jax
 import jax.numpy as jnp
-import blackjax
+import numpy as np
+import pandas as pd
+import scipy as sp
+from gcfit.util import angular_width
+from gcfit.util.data import ClusterFile, Dataset
+from scipy.optimize import fsolve
 
 # jax setup
 jax.config.update("jax_enable_x64", True)
 rng_key = jax.random.PRNGKey(137)
-
-from functools import partial
 
 
 def comp_veldisp_MLE(vi, ei, guess_sigma_c=None, guess_vbar=None):
@@ -229,6 +227,8 @@ class Observations:
             Path to filter index file.
         """
 
+        self.rng = np.random.default_rng()
+
         # load snapshot
         self.snapshot = snapshot
 
@@ -356,8 +356,8 @@ class Observations:
         errs = np.ones(len(stars)) * err
 
         # resample based on errors
-        kms_r = np.random.normal(loc=stars["vd[KM/S]"].values, scale=errs)
-        kms_t = np.random.normal(loc=stars["va[KM/S]"].values, scale=errs)
+        kms_r = self.rng.normal(loc=stars["vd[KM/S]"].values, scale=errs)
+        kms_t = self.rng.normal(loc=stars["va[KM/S]"].values, scale=errs)
 
         # build profiles
         bin_centers, sigma_r, delta_sigma_r = veldisp_profile(
@@ -444,8 +444,8 @@ class Observations:
         errs = (err * u.Unit("mas/yr")).to(u.km / u.s).value
 
         # resample based on errors
-        kms_r = np.random.normal(loc=stars["vd[KM/S]"].values, scale=errs)
-        kms_t = np.random.normal(loc=stars["va[KM/S]"].values, scale=errs)
+        kms_r = self.rng.normal(loc=stars["vd[KM/S]"].values, scale=errs)
+        kms_t = self.rng.normal(loc=stars["va[KM/S]"].values, scale=errs)
 
         # build profiles
         bin_centers, sigma_r, delta_sigma_r = veldisp_profile(
@@ -511,7 +511,7 @@ class Observations:
         errs = np.ones(len(giants)) * 1.0
 
         # resample based on errors
-        kms = np.random.normal(loc=giants["vz[KM/S]"].values, scale=errs)
+        kms = self.rng.normal(loc=giants["vz[KM/S]"].values, scale=errs)
 
         # calculate how many stars per bin to use
         # we want to target 10 bins but require at least 70 stars per bin
@@ -689,7 +689,7 @@ class Observations:
         # adopt F=3
         F = 3
         new_uncertainties = err * F
-        new_heights = np.random.normal(loc=heights, scale=new_uncertainties)
+        new_heights = self.rng.normal(loc=heights, scale=new_uncertainties)
 
         # print a bunch of debug info
         logging.info(
