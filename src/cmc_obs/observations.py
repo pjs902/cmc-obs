@@ -226,6 +226,10 @@ class Observations:
             Snapshot object.
         filtindex : str
             Path to filter index file.
+        cluster_name : str
+            Name of cluster.
+        add_photometry : bool
+            Whether to add photometry to the snapshot. Default is True.
         """
 
         self.rng = np.random.default_rng()
