@@ -215,6 +215,7 @@ class Observations:
         snapshot,
         filtindex="/home/pjs902/projects/def-vhenault/pjs902/CMC/cmctoolkit/filt_index.txt",
         cluster_name="CMC",
+        add_photometry=True,
     ):
         """
         Initialize an Observations object.
@@ -240,8 +241,9 @@ class Observations:
         u.set_enabled_equivalencies(angular_width(D=self.dist * u.kpc))
 
         # add photometry
-        filttable = ck.load_filtertable(filtindex)
-        self.snapshot.add_photometry(filttable)
+        if add_photometry:
+            filttable = ck.load_filtertable(filtindex)
+            self.snapshot.add_photometry(filttable)
 
         self.cluster_name = cluster_name
 
