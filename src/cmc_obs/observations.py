@@ -213,7 +213,7 @@ class Observations:
     def __init__(
         self,
         snapshot,
-        filtindex="/home/pjs902/projects/def-vhenault/pjs902/CMC/cmctoolkit/filt_index.txt",
+        filtindex="/home/peter/research/cmctoolkit/filt_index.txt",
         cluster_name="CMC",
         add_photometry=True,
     ):
