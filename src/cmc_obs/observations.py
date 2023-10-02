@@ -958,8 +958,8 @@ class Observations:
         self.write_obs()
 
         # read metadata (unneeded for now, was used to set mean masses of datasets)
-        # with open(f"{self.cluster_name}_metadata.json", "r", encoding="utf8") as f:
-        #     metadata = json.load(f)
+        with open(f"{self.cluster_name}_metadata.json", "r", encoding="utf8") as f:
+            metadata = json.load(f)
 
         # initialize datafile
         cf = ClusterFile(cluster_name, force_new=True)
@@ -1057,7 +1057,8 @@ class Observations:
         ND = Dataset("number_density")
 
         ND.read_data(ND_fn, delim=r",", units=units, errors=err, names=names)
-        # ND.add_metadata("m", float(metadata["number_mean_mass"]))
+        # TODO try this for now to see if it improves the rh stuff, I doubt it will
+        ND.add_metadata("m", float(metadata["number_mean_mass"]))
 
         # Set the background level, zero in this case
         bg = 0.0
