@@ -1121,6 +1121,7 @@ class Observations:
         info["vesc_initial"] = self.snapshot.vesc_initial
         info["vesc_final"] = self.snapshot.vesc_final
         info["rho_0"] = self.snapshot.rho0_MSUN_pc3
+        info["Trh"] = self.snapshot.Trh
 
         # write the data
         with open(f"{self.cluster_name}_cluster_info.json", "w", encoding="utf8") as f:
