@@ -988,7 +988,7 @@ class Observations:
         LOS = Dataset("velocity_dispersion/LOS")
 
         LOS.read_data(LOS_fn, delim=r",", keys=keys, units=units, errors=err)
-        LOS.add_metadata("m", float(metadata["los_mean_mass"]))
+        # LOS.add_metadata("m", float(metadata["los_mean_mass"]))
 
         LOS.add_metadata("source", "LOS Data")
         cf.add_dataset(LOS)
@@ -1016,7 +1016,7 @@ class Observations:
         PM.read_data(
             Hubble_fn, delim=r",", keys=keys, units=units, errors=err, names=names
         )
-        PM.add_metadata("m", float(metadata["hubble_mean_mass"]))
+        # PM.add_metadata("m", float(metadata["hubble_mean_mass"]))
         PM.add_metadata("source", "HST")
 
         cf.add_dataset(PM)
@@ -1041,7 +1041,7 @@ class Observations:
             Gaia_fn, delim=r",", keys=keys, units=units, errors=err, names=names
         )
 
-        PM.add_metadata("m", float(metadata["gaia_mean_mass"]))
+        # PM.add_metadata("m", float(metadata["gaia_mean_mass"]))
 
         PM.add_metadata("source", "Gaia")
         cf.add_dataset(PM)
@@ -1057,8 +1057,7 @@ class Observations:
         ND = Dataset("number_density")
 
         ND.read_data(ND_fn, delim=r",", units=units, errors=err, names=names)
-        # TODO try this for now to see if it improves the rh stuff, I doubt it will
-        ND.add_metadata("m", float(metadata["number_mean_mass"]))
+        # ND.add_metadata("m", float(metadata["number_mean_mass"]))
 
         # Set the background level, zero in this case
         bg = 0.0
