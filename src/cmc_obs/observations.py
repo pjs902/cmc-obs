@@ -135,8 +135,8 @@ def comp_veldisp(vi, ei):
     initial_position = {"mu": jnp.mean(vi), "sigma": jnp.std(vi)}
 
     # do warm up
-    warmup = blackjax.window_adaptation(blackjax.nuts, like, num_steps=1000)
-    state, kernel, _ = warmup.run(rng_key, initial_position)
+    warmup = blackjax.window_adaptation(blackjax.nuts, like)
+    state, kernel, _ = warmup.run(rng_key, initial_position, num_steps=1000)
 
     # do inference
     states = inference_loop(rng_key, kernel, state, 1_000)
