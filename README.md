@@ -1,6 +1,6 @@
 ## cmc-obs
 
-This library takes in a `Snapshot` object loaded by `cmc-browser` and computes various mock
+This library takes in a `Snapshot` object loaded by [`cmc-browser`](https://github.com/pjs902/cmc-browser) and computes various mock
 observations. In particular, this library will extract number density profiles, line-of-sight and
 both radial and tangential proper motion dispersion profiles and stellar mass functions.
 
