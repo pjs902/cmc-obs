@@ -1,6 +1,6 @@
 ## cmc-obs
 
-This library takes in a `Snapshot` object loaded by `cmc-browser` and computed various mock
+This library takes in a `Snapshot` object loaded by `cmc-browser` and computes various mock
 observations. In particular, this library will extract number density profiles, line-of-sight and
 both radial and tangential proper motion dispersion profiles and stellar mass functions.
 
@@ -11,23 +11,22 @@ import cmc_obs
 k = cmc_obs.observations.Observations(snap)
 ```
 
-which then handles the extraction of simulated observations which in most cases is a simple as
+which then handles the extraction of simulated observations which in most cases is as simple as
 calling a method:
 
 ```python
-# compute simpulated Gaia proper motions
+# compute simulated Gaia proper motions
 bin_centers, sigma_r, delta_sigma_r, sigma_t, delta_sigma_t, mean_mass = k.gaia_PMs()
 ```
 
-Internally, filtering based on stellar types and magnitudes are done for each dataset to match
+Internally, filtering based on stellar types and magnitudes is done for each dataset to match
 real-world performance. For example, line-of-sight velocity dispersions are limited to bright giants
 while the Gaia proper motions cover a range of $13 < G< 19$.
 
 To compute the dispersion profiles use Hamiltonian Monte Carlo, implemented in
 [blackjax](https://github.com/blackjax-devs/blackjax) to sample from a Gaussian likelihood that is
 implemented in [JAX](https://github.com/google/jax) which means that we don't lose all that much
-speed compared to the MLE approach (code for this
-[here](https://github.com/pjs902/cmc-obs/blob/63c59aed95b2015b086173ff3f4b925f84bb8986/cmc-obs/src/cmc_obs/observations.py#L126)).
+speed compared to the MLE approach.
 
 The HST and LOS dispersion profiles and number density profiles are computed in a similar way.
 
@@ -50,5 +49,5 @@ see in the real data and is based on the performance of the mass function data a
 
 Finally, this library will handle wrangling the data into the format that `GCfit` expects for its
 `ClusterFile` object and will output the data in a fully formed GCfit datafile, populated with all
-the needed metadata to be used directly in fitting.
+the needed metadata to be used directly in the fitting.
 
