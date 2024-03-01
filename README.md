@@ -51,3 +51,5 @@ Finally, this library will handle wrangling the data into the format that `GCfit
 `ClusterFile` object and will output the data in a fully formed GCfit datafile, populated with all
 the needed metadata to be used directly in the fitting.
 
+## See also
+[`cmc-browser`](https://github.com/pjs902/cmc-browser): A small library for managing a local grid of CMC models and loading the models as `Snapshot` objects which are needed for `cmc-obs`.
