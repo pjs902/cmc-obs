@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+
+[project]
+name = "cmc_obs"
+version = "0.1.0"
+description = "Create realistic mock observations from CMC models"
+authors = [{ name = "Peter Smith", email = "smith.peter.902@gmail.com" }]
+readme = "README.md"
+license = { file = "LICENSE" }
+
+[project.urls]
+homepage = "https://github.com/pjs902/cmc-obs"
