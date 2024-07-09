@@ -3,7 +3,7 @@ requires = ["setuptools", "wheel"]
 
 [project]
 name = "cmc_obs"
-version = "0.2.0"
+version = "0.3.0"
 description = "Create realistic mock observations from CMC models"
 authors = [{ name = "Peter Smith", email = "smith.peter.902@gmail.com" }]
 readme = "README.md"
