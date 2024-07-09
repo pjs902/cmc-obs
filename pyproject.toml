@@ -8,6 +8,15 @@ description = "Create realistic mock observations from CMC models"
 authors = [{ name = "Peter Smith", email = "smith.peter.902@gmail.com" }]
 readme = "README.md"
 license = { file = "LICENSE" }
+dependencies = [
+    "numpy",
+    "scipy",
+    "pandas",
+    "astropy",
+    "jax",
+    "blackjax",
+    "gcfit @ git+https://github.com/nmdickson/GCfit.git@develop",
+]
 
 [project.urls]
 homepage = "https://github.com/pjs902/cmc-obs"
