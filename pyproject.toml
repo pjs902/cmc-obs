@@ -16,6 +16,8 @@ dependencies = [
     "jax",
     "blackjax",
     "gcfit @ git+https://github.com/nmdickson/GCfit.git@develop",
+    "cmctoolkit @ git+https://github.com/pjs902/cmctoolkit.git",
+    "cmc-browser @ git+https://github.com/pjs902/cmc-browser.git",
 ]
 
 [project.urls]
