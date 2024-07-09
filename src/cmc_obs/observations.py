@@ -18,6 +18,7 @@ from scipy.optimize import fsolve
 
 # jax setup
 jax.config.update("jax_enable_x64", True)
+
 rng_key = jax.random.PRNGKey(137)
 
 
@@ -86,10 +87,7 @@ def comp_veldisp_MLE(vi, ei, guess_sigma_c=None, guess_vbar=None):
 
 # likelihood function for points with gaussian errors drawn from a gaussian (eq 5.64 in astroML book)
 def logp(mu, sigma, data, errs):
-    return -0.5 * jnp.sum(
-        jnp.log(sigma**2 + errs**2)
-        + (((data - mu) ** 2) / (sigma**2 + errs**2))
-    )
+    return -0.5 * jnp.sum(jnp.log(sigma**2 + errs**2) + (((data - mu) ** 2) / (sigma**2 + errs**2)))
 
 
 # log posterior
@@ -102,9 +100,9 @@ def logL(theta, data, errs):
     sigma_data = jnp.std(data)
 
     # uniform priors around the data mean and std
-    prior = jax.scipy.stats.uniform.logpdf(
-        loc=mu_data - 10, scale=20, x=mu
-    ) + jax.scipy.stats.uniform.logpdf(loc=0, scale=20, x=sigma)
+    prior = jax.scipy.stats.uniform.logpdf(loc=mu_data - 10, scale=20, x=mu) + jax.scipy.stats.uniform.logpdf(
+        loc=0, scale=20, x=sigma
+    )
 
     # prior = jax.scipy.stats.uniform.logpdf(loc=-500, scale=1000, x=mu) + jax.scipy.stats.uniform.logpdf(loc=0, scale=50, x=sigma)
 
@@ -216,7 +214,7 @@ class Observations:
     def __init__(
         self,
         snapshot,
-        filtindex="/home/peter/research/cmctoolkit/filt_index.txt",
+        filtindex=None,
         cluster_name="CMC",
         add_photometry=True,
     ):
@@ -228,7 +226,8 @@ class Observations:
         snapshot : Snapshot
             Snapshot object.
         filtindex : str
-            Path to filter index file.
+            Path to filter index file, used for adding photometry. Default is None.
+            If None, default filters are used which include UVBRI as well as Gaia G and HST F814W.
         cluster_name : str
             Name of cluster.
         add_photometry : bool
@@ -249,7 +248,7 @@ class Observations:
 
         # add photometry
         if add_photometry:
-            filttable = ck.load_filtertable(filtindex)
+            filttable = ck.load_default_filters() if filtindex is None else ck.load_filtertable(filtindex)
             self.snapshot.add_photometry(filttable)
 
         self.cluster_name = cluster_name
@@ -272,12 +271,8 @@ class Observations:
         self.snapshot.bh_radii_proj = pd.concat(
             [
                 self.snapshot.data.loc[(self.snapshot.data["startype"] == 14)]["d[PC]"],
-                self.snapshot.data.loc[(self.snapshot.data["bin_startype0"] == 14)][
-                    "d[PC]"
-                ],
-                self.snapshot.data.loc[(self.snapshot.data["bin_startype1"] == 14)][
-                    "d[PC]"
-                ],
+                self.snapshot.data.loc[(self.snapshot.data["bin_startype0"] == 14)]["d[PC]"],
+                self.snapshot.data.loc[(self.snapshot.data["bin_startype1"] == 14)]["d[PC]"],
             ],
             axis=0,
         ).to_list()
@@ -285,26 +280,16 @@ class Observations:
         self.snapshot.bh_radii_3d = pd.concat(
             [
                 self.snapshot.data.loc[(self.snapshot.data["startype"] == 14)]["r[PC]"],
-                self.snapshot.data.loc[(self.snapshot.data["bin_startype0"] == 14)][
-                    "r[PC]"
-                ],
-                self.snapshot.data.loc[(self.snapshot.data["bin_startype1"] == 14)][
-                    "r[PC]"
-                ],
+                self.snapshot.data.loc[(self.snapshot.data["bin_startype0"] == 14)]["r[PC]"],
+                self.snapshot.data.loc[(self.snapshot.data["bin_startype1"] == 14)]["r[PC]"],
             ],
             axis=0,
         ).to_list()
         self.snapshot.bh_masses = pd.concat(
             [
-                self.snapshot.data.loc[(self.snapshot.data["startype"] == 14)][
-                    "m_MSUN"
-                ],
-                self.snapshot.data.loc[(self.snapshot.data["bin_startype0"] == 14)][
-                    "m0_MSUN"
-                ],
-                self.snapshot.data.loc[(self.snapshot.data["bin_startype1"] == 14)][
-                    "m1_MSUN"
-                ],
+                self.snapshot.data.loc[(self.snapshot.data["startype"] == 14)]["m_MSUN"],
+                self.snapshot.data.loc[(self.snapshot.data["bin_startype0"] == 14)]["m0_MSUN"],
+                self.snapshot.data.loc[(self.snapshot.data["bin_startype1"] == 14)]["m1_MSUN"],
             ],
             axis=0,
         ).to_list()
@@ -347,11 +332,7 @@ class Observations:
 
         # select only stars with V 15 to 18 based on looking at some of the HACKS photometry tables
 
-        stars = stars.loc[
-            (stars["tot_obsMag_V"] < 18)
-            & (stars["tot_obsMag_V"] > 15.0)
-            & (stars["d[PC]"] < rad_lim)
-        ]
+        stars = stars.loc[(stars["tot_obsMag_V"] < 18) & (stars["tot_obsMag_V"] > 15.0) & (stars["d[PC]"] < rad_lim)]
         logging.info(f"HSTPM: number of stars, postfilter = {len(stars)}")
 
         # calculate how many stars per bin to use
@@ -433,9 +414,7 @@ class Observations:
         # using the 21>G>13 mag limit from Vasiliev+Baumgardt+2021 https://arxiv.org/pdf/2102.09568.pdf
         rad_lim = (100 * u.arcsec).to(u.pc).value
         stars = stars.loc[
-            (stars["tot_obsMag_GaiaG"] < 19)
-            & (stars["tot_obsMag_GaiaG"] > 13)
-            & (stars["d[PC]"] > rad_lim)
+            (stars["tot_obsMag_GaiaG"] < 19) & (stars["tot_obsMag_GaiaG"] > 13) & (stars["d[PC]"] > rad_lim)
         ]
         logging.info(f"GaiaPM: number of stars, postfilter = {len(stars)}")
 
@@ -505,9 +484,7 @@ class Observations:
         """
 
         # select only giants (No Binaries, there is some filtering in the real data, not sure we want to get into that)
-        giants = self.snapshot.data.loc[
-            (self.snapshot.data["startype"].isin([3, 4, 5, 6, 7, 8]))
-        ]
+        giants = self.snapshot.data.loc[(self.snapshot.data["startype"].isin([3, 4, 5, 6, 7, 8]))]
 
         logging.info(f"LOS: number of giants, prefilter = {len(giants)}")
 
@@ -601,9 +578,7 @@ class Observations:
             number_density[i] = len(sel) / (np.pi * (bin_max**2 - bin_min**2))
 
             # calculate error
-            delta_number_density[i] = np.sqrt(len(sel)) / (
-                np.pi * (bin_max**2 - bin_min**2)
-            )
+            delta_number_density[i] = np.sqrt(len(sel)) / (np.pi * (bin_max**2 - bin_min**2))
 
         # get mean mass for this profile
         mean_mass = np.mean(stars["m[MSUN]"])
@@ -747,9 +722,7 @@ class Observations:
         df = df.dropna()
 
         # write to file
-        df.to_csv(
-            f"./raw_data/{self.cluster_name}_hubble_pm.csv", index=False, header=True
-        )
+        df.to_csv(f"./raw_data/{self.cluster_name}_hubble_pm.csv", index=False, header=True)
         metadata["hubble_mean_mass"] = mean_mass
 
         # Gaia PM
@@ -784,9 +757,7 @@ class Observations:
         df = df.dropna()
 
         # write to file
-        df.to_csv(
-            f"./raw_data/{self.cluster_name}_gaia_pm.csv", index=False, header=True
-        )
+        df.to_csv(f"./raw_data/{self.cluster_name}_gaia_pm.csv", index=False, header=True)
         metadata["gaia_mean_mass"] = mean_mass
 
         # LOS Dispersion
@@ -890,9 +861,7 @@ class Observations:
         delta_mass_functions = []
 
         for i in range(len(annuli)):
-            mass_edges, mass_function, delta_mass_function = self.mass_function(
-                r_in=annuli[i][0], r_out=annuli[i][1]
-            )
+            mass_edges, mass_function, delta_mass_function = self.mass_function(r_in=annuli[i][0], r_out=annuli[i][1])
             for _ in range(len(mass_function)):
                 r_ins.append(annuli[i][0])
                 r_outs.append(annuli[i][1])
@@ -1016,9 +985,7 @@ class Observations:
         }
         PM = Dataset("proper_motion/Hubble")
 
-        PM.read_data(
-            Hubble_fn, delim=r",", keys=keys, units=units, errors=err, names=names
-        )
+        PM.read_data(Hubble_fn, delim=r",", keys=keys, units=units, errors=err, names=names)
         # PM.add_metadata("m", float(metadata["hubble_mean_mass"]))
         PM.add_metadata("source", "HST")
 
@@ -1040,9 +1007,7 @@ class Observations:
         }
         PM = Dataset("proper_motion/Gaia")
 
-        PM.read_data(
-            Gaia_fn, delim=r",", keys=keys, units=units, errors=err, names=names
-        )
+        PM.read_data(Gaia_fn, delim=r",", keys=keys, units=units, errors=err, names=names)
 
         # PM.add_metadata("m", float(metadata["gaia_mean_mass"]))
 
@@ -1076,11 +1041,7 @@ class Observations:
         err = {"ΔN": "N"}
         fields = {}
         # just a huge square
-        fields["CMC"] = {
-            "a": np.array(
-                [[2.0, 2.0], [2.0, -2.0], [-2.0, -2.0], [-2.0, 2.0]], dtype="f"
-            )
-        }
+        fields["CMC"] = {"a": np.array([[2.0, 2.0], [2.0, -2.0], [-2.0, -2.0], [-2.0, 2.0]], dtype="f")}
         MF = Dataset("mass_function/CMC")
         mf_df = pd.read_csv(f"./raw_data/{self.cluster_name}_mass_function.csv")
 
@@ -1208,9 +1169,7 @@ def ND_limiting_mass(ND):
     ]
 
     # interpolate the data
-    lim_spl = sp.interpolate.interp1d(
-        x=nds, y=ms, kind="linear", bounds_error=False, fill_value=(0.13, 0.8)
-    )
+    lim_spl = sp.interpolate.interp1d(x=nds, y=ms, kind="linear", bounds_error=False, fill_value=(0.13, 0.8))
 
     # return the interpolated value
     return lim_spl(ND)
