@@ -2,6 +2,7 @@ import json
 import logging
 import pathlib
 from functools import partial
+import os
 
 import astropy.units as u
 import blackjax
@@ -296,7 +297,7 @@ class Observations:
         self.snapshot.M_BH = np.sum(self.snapshot.bh_masses)
         self.snapshot.N_BH = len(self.snapshot.bh_masses)
 
-    def hubble_PMs(self, stars_per_bin=120):
+    def hubble_PMs(self, stars_per_bin=120, r_outer=100, mag_lim_bright=15, mag_lim_faint=18, per_star_err=0.1):
         """
         Simulate proper motion measurements with HST-like performance.
         (performance details from VHB2019)
@@ -305,6 +306,14 @@ class Observations:
         ----------
         stars_per_bin : int
             Number of stars per bin. Default is 120 (more is generally better).
+        r_outer : float
+            Outer radius for HST measurements, units of arcseconds. Default is 100.
+        mag_lim_bright : float
+            Bright magnitude limit for HST measurements. Default is 15.
+        mag_lim_faint : float
+            Faint magnitude limit for HST measurements. Default is 18.
+        per_star_err : float
+            Per-star proper motion error, units of mas/yr. Default is 0.1.
 
         Returns
         -------
@@ -328,11 +337,15 @@ class Observations:
         logging.info(f"HSTPM: number of stars, prefilter = {len(stars)}")
 
         # inner 100 arcsec only
-        rad_lim = (100 * u.arcsec).to(u.pc).value
+        rad_lim = (r_outer * u.arcsec).to(u.pc).value
 
         # select only stars with V 15 to 18 based on looking at some of the HACKS photometry tables
 
-        stars = stars.loc[(stars["tot_obsMag_V"] < 18) & (stars["tot_obsMag_V"] > 15.0) & (stars["d[PC]"] < rad_lim)]
+        stars = stars.loc[
+            (stars["tot_obsMag_V"] < mag_lim_faint)
+            & (stars["tot_obsMag_V"] > mag_lim_bright)
+            & (stars["d[PC]"] < rad_lim)
+        ]
         logging.info(f"HSTPM: number of stars, postfilter = {len(stars)}")
 
         # calculate how many stars per bin to use
@@ -342,7 +355,7 @@ class Observations:
         logging.info(f"HSTPM: stars per bin = {stars_per_bin}")
 
         # uncertainty of 0.1 mas/yr
-        err = (0.1 * u.Unit("mas/yr")).to(u.km / u.s).value
+        err = (per_star_err * u.Unit("mas/yr")).to(u.km / u.s).value
         errs = np.ones(len(stars)) * err
 
         # resample based on errors
@@ -377,7 +390,7 @@ class Observations:
 
         return bin_centers, sigma_r, delta_sigma_r, sigma_t, delta_sigma_t, mean_mass
 
-    def gaia_PMs(self, stars_per_bin=120):
+    def gaia_PMs(self, stars_per_bin=120, r_inner=100, mag_lim_bright=13, mag_lim_faint=19):
         """
         Simulate proper motion measurements with Gaia-like performance.
         (performance details from VHB2019 and https://www.cosmos.esa.int/web/gaia/earlydr3)
@@ -386,6 +399,12 @@ class Observations:
         ----------
         stars_per_bin : int
             Number of stars per bin. Default is 120 (more is generally better).
+        r_inner : float
+            Inner radius for Gaia measurements, units of arcseconds. Default is 100.
+        mag_lim_bright : float
+            Bright magnitude limit for Gaia measurements. Default is 13.
+        mag_lim_faint : float
+            Faint magnitude limit for Gaia measurements. Default is 19.
 
         Returns
         -------
@@ -412,9 +431,11 @@ class Observations:
         # select based on G mag
         # also only want stars further than 100 arcsec so we dont overlap with HST
         # using the 21>G>13 mag limit from Vasiliev+Baumgardt+2021 https://arxiv.org/pdf/2102.09568.pdf
-        rad_lim = (100 * u.arcsec).to(u.pc).value
+        rad_lim = (r_inner * u.arcsec).to(u.pc).value
         stars = stars.loc[
-            (stars["tot_obsMag_GaiaG"] < 19) & (stars["tot_obsMag_GaiaG"] > 13) & (stars["d[PC]"] > rad_lim)
+            (stars["tot_obsMag_GaiaG"] < mag_lim_faint)
+            & (stars["tot_obsMag_GaiaG"] > mag_lim_bright)
+            & (stars["d[PC]"] > rad_lim)
         ]
         logging.info(f"GaiaPM: number of stars, postfilter = {len(stars)}")
 
@@ -464,7 +485,7 @@ class Observations:
 
         return bin_centers, sigma_r, delta_sigma_r, sigma_t, delta_sigma_t, mean_mass
 
-    def LOS_dispersion(self, stars_per_bin=70):
+    def LOS_dispersion(self, stars_per_bin=70, mag_lim_faint=17, per_star_err=1.0):
         """
         Simulate LOS velocity dispersion measurements with performance based on VHB+2019.
 
@@ -472,6 +493,10 @@ class Observations:
         ----------
         stars_per_bin : int
             Number of stars per bin. Default is 70 (more is generally better).
+        mag_lim_faint : float
+            Faint magnitude limit for LOS measurements. Default is 17.
+        per_star_err : float
+            Per-star velocity error, units of km/s. Default is 1.0.
 
         Returns
         -------
@@ -520,7 +545,7 @@ class Observations:
         mean_mass = np.mean(giants["m[MSUN]"])
         return bin_centers, sigma, delta_sigma, mean_mass
 
-    def number_density(self, Nbins=50):
+    def number_density(self, Nbins=50, mag_lim_faint=20):
         """
         Simulate number density measurements with performance based on de Boer+2019.
 
@@ -528,6 +553,8 @@ class Observations:
         ----------
         Nbins : int
             Number of bins. Default is 50.
+        mag_lim_faint : float
+            Faint magnitude limit for number density measurements. Default is 20.
 
         Returns
         -------
@@ -550,7 +577,7 @@ class Observations:
         logging.info(f"ND: number of stars, prefilter = {len(stars)}")
 
         # select stars brighter than G 20, de Boer+2019
-        stars = stars.loc[stars["tot_obsMag_GaiaG"] < 20]
+        stars = stars.loc[stars["tot_obsMag_GaiaG"] < mag_lim_faint]
         logging.info(f"ND: number of stars, postfilter = {len(stars)}")
 
         # calculate number of stars per bin given total bins
@@ -595,7 +622,7 @@ class Observations:
 
         return bin_centers, number_density, delta_number_density, mean_mass
 
-    def mass_function(self, r_in, r_out, bins=10):
+    def mass_function(self, r_in, r_out, bins=10, extra_scatter=3.0):
         """
         Extract the mass function in a given annulus.
 
@@ -607,6 +634,8 @@ class Observations:
             Outer radius of annulus, units of arcmin.
         bins : int (optional)
             Number of bins to use for mass function. Default is 10.
+        extra_scatter : float (optional)
+            Factor by which to increase the scatter in the mass function. Default is 3.0.
 
         Returns
         -------
@@ -671,7 +700,7 @@ class Observations:
 
         # need to add some scatter for realism
         # adopt F=3
-        F = 3
+        F = extra_scatter
         new_uncertainties = err * F
         new_heights = self.rng.normal(loc=heights, scale=new_uncertainties)
 
@@ -686,6 +715,10 @@ class Observations:
         """
         Write the simulated observations to a file.
         """
+
+        # check that ./raw_data/ exists, create if not
+        if not os.path.exists("./raw_data"):
+            os.makedirs("./raw_data")
 
         # metadata dict to hold thins like masses
         metadata = {}
@@ -921,16 +954,24 @@ class Observations:
         with open(f"{self.cluster_name}_metadata.json", "w", encoding="utf8") as f:
             json.dump(metadata, f, indent=4)
 
-    def create_datafile(self, cluster_name):
+    def create_datafile(self, cluster_name, include_masses=False):
         """
         Create a GCfit datafile from the synthetic data.
+
+        Parameters
+        ----------
+        cluster_name : str
+            Name of the cluster.
+        include_masses : bool
+            Whether to include the mean masses of each dataset in the Observations file. Default is False.
+            We wouldn't know this in the real world, so we don't include it by default but it can be useful for testing.
         """
 
         # first, write out the data just in case it hasn't been done yet
         self.write_obs()
 
         # read metadata (unneeded for now, was used to set mean masses of datasets)
-        with open(f"{self.cluster_name}_metadata.json", "r", encoding="utf8") as f:
+        with open(f"{self.cluster_name}_metadata.json", encoding="utf8") as f:
             metadata = json.load(f)
 
         # initialize datafile
@@ -960,7 +1001,8 @@ class Observations:
         LOS = Dataset("velocity_dispersion/LOS")
 
         LOS.read_data(LOS_fn, delim=r",", keys=keys, units=units, errors=err)
-        # LOS.add_metadata("m", float(metadata["los_mean_mass"]))
+        if include_masses:
+            LOS.add_metadata("m", float(metadata["los_mean_mass"]))
 
         LOS.add_metadata("source", "LOS Data")
         cf.add_dataset(LOS)
@@ -986,7 +1028,9 @@ class Observations:
         PM = Dataset("proper_motion/Hubble")
 
         PM.read_data(Hubble_fn, delim=r",", keys=keys, units=units, errors=err, names=names)
-        # PM.add_metadata("m", float(metadata["hubble_mean_mass"]))
+        if include_masses:
+            PM.add_metadata("m", float(metadata["hubble_mean_mass"]))
+
         PM.add_metadata("source", "HST")
 
         cf.add_dataset(PM)
@@ -1009,7 +1053,8 @@ class Observations:
 
         PM.read_data(Gaia_fn, delim=r",", keys=keys, units=units, errors=err, names=names)
 
-        # PM.add_metadata("m", float(metadata["gaia_mean_mass"]))
+        if include_masses:
+            PM.add_metadata("m", float(metadata["gaia_mean_mass"]))
 
         PM.add_metadata("source", "Gaia")
         cf.add_dataset(PM)
@@ -1025,7 +1070,9 @@ class Observations:
         ND = Dataset("number_density")
 
         ND.read_data(ND_fn, delim=r",", units=units, errors=err, names=names)
-        # ND.add_metadata("m", float(metadata["number_mean_mass"]))
+
+        if include_masses:
+            ND.add_metadata("m", float(metadata["number_mean_mass"]))
 
         # Set the background level, zero in this case
         bg = 0.0
