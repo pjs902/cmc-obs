@@ -14,6 +14,7 @@ dependencies = [
     "pandas",
     "astropy",
     "jax",
+    "tqdm",
     "blackjax",
     "gcfit @ git+https://github.com/nmdickson/GCfit.git@develop",
     "cmctoolkit @ git+https://github.com/pjs902/cmctoolkit.git",

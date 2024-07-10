@@ -16,6 +16,7 @@ import scipy as sp
 from gcfit.util import angular_width
 from gcfit.util.data import ClusterFile, Dataset
 from scipy.optimize import fsolve
+from tqdm import trange
 
 # jax setup
 jax.config.update("jax_enable_x64", True)
@@ -150,7 +151,7 @@ def comp_veldisp(vi, ei):
     return np.mean(sigma_samples), np.std(sigma_samples)
 
 
-def veldisp_profile(x, vi, ei, stars_per_bin=15):
+def veldisp_profile(x, vi, ei, stars_per_bin=15, show_progress=False):
     """
     Compute velocity dispersion profile from velocity dispersion measurements and their uncertainties.
     Creates bins with equal number of stars in each bin.
@@ -165,6 +166,8 @@ def veldisp_profile(x, vi, ei, stars_per_bin=15):
         Array of velocity uncertainties.
     stars_per_bin : int
         Number of stars per bin. Default is 15 (more is generally better).
+    show_progress : bool
+        Whether to show progress with tqdm bar. Default is False.
 
     Returns
     -------
@@ -188,7 +191,7 @@ def veldisp_profile(x, vi, ei, stars_per_bin=15):
 
     # loop over bins
     start = 0
-    for i in range(bins):
+    for i in trange(bins, disable=not show_progress):
         # set end of bin
         end = np.min([start + stars_per_bin, len(x)])
         # calculate velocity dispersion
