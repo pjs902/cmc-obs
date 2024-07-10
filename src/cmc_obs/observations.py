@@ -164,8 +164,8 @@ def veldisp_profile(x, vi, ei, stars_per_bin=15, show_progress=False):
         Array of velocities.
     ei : array_like
         Array of velocity uncertainties.
-    stars_per_bin : int
-        Number of stars per bin. Default is 15 (more is generally better).
+    stars_per_bin : Union[int, array_like]
+        Number of stars per bin. Can be an integer for uniform binning or an array of bin sizes. Default is 15.
     show_progress : bool
         Whether to show progress with tqdm bar. Default is False.
 
@@ -177,37 +177,98 @@ def veldisp_profile(x, vi, ei, stars_per_bin=15, show_progress=False):
         Array of velocity dispersions.
     delta_sigma : array_like
         Array of velocity dispersion uncertainties.
+
+    See Also
+    --------
+    create_binning : Create binning for dispersion profiles.
     """
 
-    # calculate number of bins
-    bins = int(np.ceil(len(x) / stars_per_bin))
-    # bin_edges = np.histogram_bin_edges(x, bins=bins)
+    # check if stars_per_bin is an array or list
+    if isinstance(stars_per_bin, list | np.ndarray):
+        bins = len(stars_per_bin)
+    elif isinstance(stars_per_bin, int):
+        bins = int(np.ceil(len(x) / stars_per_bin))
+        stars_per_bin = np.ones(bins) * stars_per_bin
+    else:
+        msg = "stars_per_bin must be an integer, list or numpy array"
+        raise ValueError(msg)
 
     # initialize arrays
     sigma = np.zeros(bins)
     delta_sigma = np.zeros(bins)
-
     bin_centers = np.zeros(bins)
 
     # loop over bins
     start = 0
     for i in trange(bins, disable=not show_progress):
         # set end of bin
-        end = np.min([start + stars_per_bin, len(x)])
+        end = np.min([start + int(stars_per_bin[i]), len(x)])
         # calculate velocity dispersion
         sigma[i], delta_sigma[i] = comp_veldisp(vi[start:end], ei[start:end])
         bin_centers[i] = np.mean(x[start:end])
 
-        start += stars_per_bin
+        start += int(stars_per_bin[i])
 
         # put this here for now, this shouldn't happen anymore?
         if np.abs(sigma[i]) > 100:
             logging.warning("solver failed, try more stars per bin")
             sigma[i] = np.nan
             delta_sigma[i] = np.nan
-    # return bin centers and velocity dispersion
-    # return (bin_edges[:-1] + bin_edges[1:]) / 2, sigma, delta_sigma
+
     return bin_centers, sigma, delta_sigma
+
+
+def create_binning(xs, prepend_bins, append_bins, middle_bin_size=None, N_middle_bins=None):
+    """
+    Create binning for things like dispersion profiles. Allows for you to specify some starting and
+    ending bins with custom bin sizes, filling in the middle with bins of uniform size. The middle bins
+    can be either a fixed number of bins or a fixed bin size.
+
+    Parameters
+    ----------
+    xs : array-like
+        The values to bin.
+    prepend_bins : array-like
+        The bins to prepend to the start of the array.
+    append_bins : array-like
+        The bins to append to the end of the array.
+    middle_bin_size : int, optional
+        The size of the middle bins. If not provided, N_middle_bins must be provided, but not both.
+    N_middle_bins : int, optional
+        The number of middle bins. If not provided, middle_bin_size must be provided, but not both.
+    Returns
+    -------
+    bins : array-like
+        The bin sizes.
+    """
+
+    N = len(xs)
+    to_bin = N - (sum(prepend_bins) + sum(append_bins))
+
+    if middle_bin_size is not None and N_middle_bins is not None:
+        msg = "Only one of middle_bin_size or N_middle_bins can be provided."
+        raise ValueError(msg)
+
+    if middle_bin_size is None and N_middle_bins is None:
+        msg = "Either middle_bin_size or N_middle_bins must be provided."
+        raise ValueError(msg)
+
+    if middle_bin_size is not None:
+        stars_per_bin = middle_bin_size
+        N_middle_bins = to_bin // middle_bin_size
+        N_extra = to_bin % middle_bin_size
+    else:
+        N_middle_bins = N_middle_bins
+        stars_per_bin = to_bin // N_middle_bins
+        N_extra = to_bin % N_middle_bins
+
+    append_bins[-1] += N_extra
+
+    bins = np.concatenate([prepend_bins, np.repeat(stars_per_bin, N_middle_bins), append_bins])
+
+    assert sum(bins) == N
+
+    return bins
 
 
 class Observations:
