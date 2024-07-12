@@ -186,7 +186,7 @@ def veldisp_profile(x, vi, ei, stars_per_bin=15, show_progress=False):
     # check if stars_per_bin is an array or list
     if isinstance(stars_per_bin, list | np.ndarray):
         bins = len(stars_per_bin)
-    elif isinstance(stars_per_bin, int):
+    elif isinstance(stars_per_bin, int | np.int64):
         bins = int(np.ceil(len(x) / stars_per_bin))
         stars_per_bin = np.ones(bins) * stars_per_bin
     else:
