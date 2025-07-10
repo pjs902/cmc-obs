@@ -722,6 +722,8 @@ class Observations:
         lower = np.min(sel["m[MSUN]"])
         upper = ck.find_MS_TO(t=self.snapshot.age, z=self.snapshot.z)
 
+        logging.info(f"mass function between {lower} - {upper}")
+
         # select stars in annulus
         sel = sel.loc[(sel["d[PC]"] > r_in_pc) & (sel["d[PC]"] < r_out_pc)]
 
@@ -752,6 +754,10 @@ class Observations:
 
         # update sel to only include stars above the limiting mass
         sel = sel.loc[sel["m[MSUN]"] > (limiting_mass - 0.1)]
+
+        if sel.empty:
+            raise RuntimeError(f'Could not make MF between {r_in} - {r_out}, '
+                               f'no stars above {limiting_mass - 0.1=}')
 
         # update lower mass limits for histogram
         lower = np.min(sel["m[MSUN]"])
@@ -958,7 +964,14 @@ class Observations:
         delta_mass_functions = []
 
         for i in range(len(annuli)):
-            mass_edges, mass_function, delta_mass_function = self.mass_function(r_in=annuli[i][0], r_out=annuli[i][1])
+            # print(f"making mass function for {annuli[i]}")
+            try:
+                mass_edges, mass_function, delta_mass_function = self.mass_function(r_in=annuli[i][0], r_out=annuli[i][1], **mf_kwargs)
+            except RuntimeError:
+                # logging.info(f'Failed to make MF between {annuli[i]}')
+                logging.warning(f'Failed to make MF between {annuli[i]}')
+                continue
+
             for _ in range(len(mass_function)):
                 r_ins.append(annuli[i][0])
                 r_outs.append(annuli[i][1])
@@ -992,15 +1005,18 @@ class Observations:
         mass_functions = np.round(mass_functions, 3)
         delta_mass_functions = np.round(delta_mass_functions, 3)
 
+        # Only keep datapoints with N>5
+        mask = mass_functions > 5
+
         # create dataframe
         df = pd.DataFrame(
             {
-                "r1": r_ins,
-                "r2": r_outs,
-                "m1": m1s,
-                "m2": m2s,
-                "N": mass_functions,
-                "ΔN": delta_mass_functions,
+                "r1": r_ins[mask],
+                "r2": r_outs[mask],
+                "m1": m1s[mask],
+                "m2": m2s[mask],
+                "N": mass_functions[mask],
+                "ΔN": delta_mass_functions[mask],
             }
         )
 
