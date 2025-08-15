@@ -361,7 +361,7 @@ class Observations:
         self.snapshot.M_BH = np.sum(self.snapshot.bh_masses)
         self.snapshot.N_BH = len(self.snapshot.bh_masses)
 
-    def hubble_PMs(self, stars_per_bin=120, r_outer=100, mag_lim_bright=15, mag_lim_faint=18, per_star_err=0.1):
+    def hubble_PMs(self, stars_per_bin=-1, r_outer=100, mag_lim_bright=15, mag_lim_faint=18, per_star_err=0.1, *, max_per_bin=99999, min_per_bin=120):
         """
         Simulate proper motion measurements with HST-like performance.
         (performance details from VHB2019)
@@ -413,9 +413,12 @@ class Observations:
         logging.info(f"HSTPM: number of stars, postfilter = {len(stars)}")
 
         # calculate how many stars per bin to use
-        # we want to target 5 bins but require at least 120 stars per bin
-        stars_per_bin = int(np.ceil(len(stars) / 5))
-        stars_per_bin = np.max([stars_per_bin, 120])
+        # require at least 120 stars per bin, at most 500, target 5 bins
+        if stars_per_bin < 1:
+            stars_per_bin = int(np.ceil(len(stars) / 5))
+            stars_per_bin = np.max([stars_per_bin, min_per_bin])
+            stars_per_bin = np.min([stars_per_bin, max_per_bin])
+
         logging.info(f"HSTPM: stars per bin = {stars_per_bin}")
 
         # uncertainty of 0.1 mas/yr
@@ -454,7 +457,7 @@ class Observations:
 
         return bin_centers, sigma_r, delta_sigma_r, sigma_t, delta_sigma_t, mean_mass
 
-    def gaia_PMs(self, stars_per_bin=120, r_inner=100, mag_lim_bright=13, mag_lim_faint=19):
+    def gaia_PMs(self, stars_per_bin=-1, r_inner=100, mag_lim_bright=13, mag_lim_faint=19, *, min_per_bin=120, max_per_bin=1500):
         """
         Simulate proper motion measurements with Gaia-like performance.
         (performance details from VHB2019 and https://www.cosmos.esa.int/web/gaia/earlydr3)
@@ -504,9 +507,11 @@ class Observations:
         logging.info(f"GaiaPM: number of stars, postfilter = {len(stars)}")
 
         # calculate how many stars per bin to use
-        # require at least 120 stars per bin, target 5 bins
-        stars_per_bin = int(np.ceil(len(stars) / 5))
-        stars_per_bin = np.max([stars_per_bin, 120])
+        # require at least 120 stars per bin, at most 500, target 5 bins
+        if stars_per_bin < 1:
+            stars_per_bin = int(np.ceil(len(stars) / 5))
+            stars_per_bin = np.max([stars_per_bin, min_per_bin])
+            stars_per_bin = np.min([stars_per_bin, max_per_bin])
 
         logging.info(f"GaiaPM: stars per bin = {stars_per_bin}")
 
@@ -722,6 +727,8 @@ class Observations:
         lower = np.min(sel["m[MSUN]"])
         upper = ck.find_MS_TO(t=self.snapshot.age, z=self.snapshot.z)
 
+        logging.info(f"mass function between {lower} - {upper}")
+
         # select stars in annulus
         sel = sel.loc[(sel["d[PC]"] > r_in_pc) & (sel["d[PC]"] < r_out_pc)]
 
@@ -753,6 +760,10 @@ class Observations:
         # update sel to only include stars above the limiting mass
         sel = sel.loc[sel["m[MSUN]"] > (limiting_mass - 0.1)]
 
+        if sel.empty:
+            raise RuntimeError(f'Could not make MF between {r_in} - {r_out}, '
+                               f'no stars above {limiting_mass - 0.1=}')
+
         # update lower mass limits for histogram
         lower = np.min(sel["m[MSUN]"])
 
@@ -775,10 +786,19 @@ class Observations:
 
         return edges, new_heights, err
 
-    def write_obs(self):
+    def write_obs(self, hubble_kwargs=None, gaia_kwargs=None, LOS_kwargs=None,
+                  nd_kwargs=None, mf_kwargs=None,
+                  inner_annuli=[(0, 0.4), (0.4, 0.8), (0.8, 1.2), (1.2, 1.6)],
+                  outer_annuli_centers=[2.5, 5, 6, 7.5, 10, 11, 12, 17.5]):
         """
         Write the simulated observations to a file.
         """
+
+        hubble_kwargs = {} if hubble_kwargs is None else hubble_kwargs
+        gaia_kwargs = {} if gaia_kwargs is None else gaia_kwargs
+        LOS_kwargs = {} if LOS_kwargs is None else LOS_kwargs
+        nd_kwargs = {} if nd_kwargs is None else nd_kwargs
+        mf_kwargs = {} if mf_kwargs is None else mf_kwargs
 
         # check that ./raw_data/ exists, create if not
         if not os.path.exists("./raw_data"):
@@ -795,7 +815,7 @@ class Observations:
             sigma_t,
             delta_sigma_t,
             mean_mass,
-        ) = self.hubble_PMs()
+        ) = self.hubble_PMs(**hubble_kwargs)
 
         # round to 3 decimal places
         bin_centers = np.round(bin_centers, 3)
@@ -830,7 +850,7 @@ class Observations:
             sigma_t,
             delta_sigma_t,
             mean_mass,
-        ) = self.gaia_PMs()
+        ) = self.gaia_PMs(**gaia_kwargs)
 
         # round to 3 decimal places
         bin_centers = np.round(bin_centers, 3)
@@ -858,7 +878,7 @@ class Observations:
         metadata["gaia_mean_mass"] = mean_mass
 
         # LOS Dispersion
-        bin_centers, sigmas, delta_sigmas, mean_mass = self.LOS_dispersion()
+        bin_centers, sigmas, delta_sigmas, mean_mass = self.LOS_dispersion(**LOS_kwargs)
 
         # round to 3 decimal places
         bin_centers = np.round(bin_centers, 3)
@@ -891,7 +911,7 @@ class Observations:
             number_density,
             delta_number_density,
             mean_mass,
-        ) = self.number_density()
+        ) = self.number_density(**nd_kwargs)
 
         # round to 3 decimal places
         bin_centers = np.round(bin_centers, 3)
@@ -924,16 +944,21 @@ class Observations:
         # calculate the inner and outer radii of each annulus, based on the
         # centers of the annuli matching the desired area
         # For now lets normalize to the 47 Tuc Heinke exposure, eg 0-1.5' annulus
-        inner_annuli = [
-            (0, 0.4),
-            (0.4, 0.8),
-            (0.8, 1.2),
-            (1.2, 1.6),
-        ]
-        outer_annuli_centers = [2.5, 5] << u.arcmin
+        # inner_annuli = [
+        #     (0, 0.4),
+        #     (0.4, 0.8),
+        #     (0.8, 1.2),
+        #     (1.2, 1.6),
+        # ]
+
+        outer_annuli_centers <<= u.arcmin
+        # outer_annuli_centers = [2.5, 5] << u.arcmin
+        # outer_annuli_centers = [2.5, 5, 6, 7.5, 10, 11, 12, 17.5] << u.arcmin
+        # outer_annuli_centers = [2.5, 5, 6, 7.5, 10,] << u.arcmin
+        # outer_annuli_centers = [2.5, ] << u.arcmin
 
         # target area of outer annuli
-        area = np.pi * 1.5 * u.arcmin**2
+        area = np.pi * 2.5 * u.arcmin**2
 
         # build the outer annuli
         outer_annuli = []
@@ -958,7 +983,14 @@ class Observations:
         delta_mass_functions = []
 
         for i in range(len(annuli)):
-            mass_edges, mass_function, delta_mass_function = self.mass_function(r_in=annuli[i][0], r_out=annuli[i][1])
+            # print(f"making mass function for {annuli[i]}")
+            try:
+                mass_edges, mass_function, delta_mass_function = self.mass_function(r_in=annuli[i][0], r_out=annuli[i][1], **mf_kwargs)
+            except RuntimeError:
+                # logging.info(f'Failed to make MF between {annuli[i]}')
+                logging.warning(f'Failed to make MF between {annuli[i]}')
+                continue
+
             for _ in range(len(mass_function)):
                 r_ins.append(annuli[i][0])
                 r_outs.append(annuli[i][1])
@@ -992,15 +1024,18 @@ class Observations:
         mass_functions = np.round(mass_functions, 3)
         delta_mass_functions = np.round(delta_mass_functions, 3)
 
+        # Only keep datapoints with N>5
+        mask = mass_functions > 5
+
         # create dataframe
         df = pd.DataFrame(
             {
-                "r1": r_ins,
-                "r2": r_outs,
-                "m1": m1s,
-                "m2": m2s,
-                "N": mass_functions,
-                "ΔN": delta_mass_functions,
+                "r1": r_ins[mask],
+                "r2": r_outs[mask],
+                "m1": m1s[mask],
+                "m2": m2s[mask],
+                "N": mass_functions[mask],
+                "ΔN": delta_mass_functions[mask],
             }
         )
 
@@ -1018,7 +1053,7 @@ class Observations:
         with open(f"{self.cluster_name}_metadata.json", "w", encoding="utf8") as f:
             json.dump(metadata, f, indent=4)
 
-    def create_datafile(self, cluster_name, include_masses=False):
+    def create_datafile(self, cluster_name, include_masses=False, **obskwargs):
         """
         Create a GCfit datafile from the synthetic data.
 
@@ -1032,7 +1067,7 @@ class Observations:
         """
 
         # first, write out the data just in case it hasn't been done yet
-        self.write_obs()
+        self.write_obs(**obskwargs)
 
         # read metadata (unneeded for now, was used to set mean masses of datasets)
         with open(f"{self.cluster_name}_metadata.json", encoding="utf8") as f:
