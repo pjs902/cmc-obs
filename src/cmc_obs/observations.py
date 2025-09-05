@@ -453,6 +453,109 @@ class Observations:
 
         return bin_centers, sigma_r, delta_sigma_r, sigma_t, delta_sigma_t, mean_mass
 
+
+
+
+
+    def ERIS_PMs(self, stars_per_bin=-1, r_outer=13, mag_lim_bright=15, mag_lim_faint=20, per_star_err=0.05, *, max_per_bin=300, min_per_bin=120):
+        """
+        Simulate proper motion measurements with ERIS-like performance.
+
+        Parameters
+        ----------
+        stars_per_bin : int
+            Number of stars per bin. Default is 120 (more is generally better).
+        r_outer : float
+            Outer radius for ERIS measurements, units of arcseconds. Default is 13.
+        mag_lim_bright : float
+            Bright magnitude limit for ERIS measurements. Default is 15.
+        mag_lim_faint : float
+            Faint magnitude limit for ERIS measurements. Default is 20.
+        per_star_err : float
+            Per-star proper motion error, units of mas/yr. Default is 0.05.
+
+        Returns
+        -------
+        bin_centers : array_like
+            Array of bin centers, units of arcseconds.
+        sigma_r : array_like
+            Array of velocity dispersions in the radial direction, units are mas/yr.
+        delta_sigma_r : array_like
+            Array of velocity dispersion uncertainties in the radial direction.
+        sigma_t : array_like
+            Array of velocity dispersions in the tangential direction, units are mas/yr.
+        delta_sigma_t : array_like
+            Array of velocity dispersion uncertainties in the tangential direction.
+        """
+
+        stars = self.snapshot.data.loc[
+            (self.snapshot.data["startype"].isin(self.startypes))
+            | (self.snapshot.data["bin_startype0"].isin(self.startypes))
+            | (self.snapshot.data["bin_startype1"].isin(self.startypes))
+        ]
+        logging.info(f"ERISPM: number of stars, prefilter = {len(stars)}")
+
+        # inner 13 arcsec only
+        rad_lim = (r_outer * u.arcsec).to(u.pc).value
+
+        # select only stars with V 15 to 18 based on looking at some of the HACKS photometry tables
+
+        stars = stars.loc[
+            (stars["tot_obsMag_V"] < mag_lim_faint)
+            & (stars["tot_obsMag_V"] > mag_lim_bright)
+            & (stars["d[PC]"] < rad_lim)
+        ]
+        logging.info(f"ERISPM: number of stars, postfilter = {len(stars)}")
+
+        # calculate how many stars per bin to use
+        # require at least 120 stars per bin, at most 500, target 5 bins
+        if stars_per_bin < 1:
+            stars_per_bin = int(np.ceil(len(stars) / 5))
+            stars_per_bin = np.max([stars_per_bin, min_per_bin])
+            stars_per_bin = np.min([stars_per_bin, max_per_bin])
+
+        logging.info(f"ERISPM: stars per bin = {stars_per_bin}")
+
+        # uncertainty of 0.05 mas/yr
+        err = (per_star_err * u.Unit("mas/yr")).to(u.km / u.s).value
+        errs = np.ones(len(stars)) * err
+
+        # resample based on errors
+        kms_r = self.rng.normal(loc=stars["vd[KM/S]"].values, scale=errs)
+        kms_t = self.rng.normal(loc=stars["va[KM/S]"].values, scale=errs)
+
+        # build profiles
+        bin_centers, sigma_r, delta_sigma_r = veldisp_profile(
+            x=stars["d[PC]"].values,
+            vi=kms_r,
+            ei=errs,
+            stars_per_bin=stars_per_bin,
+        )
+
+        bin_centers, sigma_t, delta_sigma_t = veldisp_profile(
+            x=stars["d[PC]"].values,
+            vi=kms_t,
+            ei=errs,
+            stars_per_bin=stars_per_bin,
+        )
+        # get mean mass for these profiles
+        mean_mass = np.mean(stars["m[MSUN]"])
+
+        # convert to mas/yr
+        sigma_r = (sigma_r * u.km / u.s).to(u.mas / u.yr).value
+        delta_sigma_r = (delta_sigma_r * u.km / u.s).to(u.mas / u.yr).value
+        sigma_t = (sigma_t * u.km / u.s).to(u.mas / u.yr).value
+        delta_sigma_t = (delta_sigma_t * u.km / u.s).to(u.mas / u.yr).value
+
+        # convert bin centers to arcsec
+        bin_centers = (bin_centers * u.pc).to(u.arcsec).value
+
+        return bin_centers, sigma_r, delta_sigma_r, sigma_t, delta_sigma_t, mean_mass
+
+
+
+
+
     def gaia_PMs(self, stars_per_bin=-1, r_inner=100, mag_lim_bright=13, mag_lim_faint=19, *, min_per_bin=120, max_per_bin=1500):
         """
         Simulate proper motion measurements with Gaia-like performance.
@@ -782,7 +885,7 @@ class Observations:
 
         return edges, new_heights, err
 
-    def write_obs(self, hubble_kwargs=None, gaia_kwargs=None, LOS_kwargs=None,
+    def write_obs(self, hubble_kwargs=None, gaia_kwargs=None, eris_kwargs=None, LOS_kwargs=None,
                   nd_kwargs=None, mf_kwargs=None,
                   inner_annuli=[(0, 0.4), (0.4, 0.8), (0.8, 1.2), (1.2, 1.6)],
                   outer_annuli_centers=[2.5, 5, 6, 7.5, 10, 11, 12, 17.5]):
@@ -792,6 +895,7 @@ class Observations:
 
         hubble_kwargs = {} if hubble_kwargs is None else hubble_kwargs
         gaia_kwargs = {} if gaia_kwargs is None else gaia_kwargs
+        eris_kwargs = {} if eris_kwargs is None else eris_kwargs
         LOS_kwargs = {} if LOS_kwargs is None else LOS_kwargs
         nd_kwargs = {} if nd_kwargs is None else nd_kwargs
         mf_kwargs = {} if mf_kwargs is None else mf_kwargs
@@ -837,6 +941,40 @@ class Observations:
         # write to file
         df.to_csv(f"./raw_data/{self.cluster_name}_hubble_pm.csv", index=False, header=True)
         metadata["hubble_mean_mass"] = mean_mass
+
+
+        # ERIS PM
+        (
+            bin_centers,
+            sigma_r,
+            delta_sigma_r,
+            sigma_t,
+            delta_sigma_t,
+            mean_mass,
+        ) = self.ERIS_PMs(**eris_kwargs)
+        # round to 3 decimal places
+        bin_centers = np.round(bin_centers, 3)
+        sigma_r = np.round(sigma_r, 3)
+        delta_sigma_r = np.round(delta_sigma_r, 3)
+        sigma_t = np.round(sigma_t, 3)
+        delta_sigma_t = np.round(delta_sigma_t, 3)
+        mean_mass = np.round(mean_mass, 3)
+        # create dataframe
+        df = pd.DataFrame(
+            {
+                "r": bin_centers,
+                "σ_R": sigma_r,
+                "Δσ_R": delta_sigma_r,
+                "σ_T": sigma_t,
+                "Δσ_T": delta_sigma_t,
+            }
+        )
+        # drop rows with NaNs
+        df = df.dropna()
+
+        # write to file
+        df.to_csv(f"./raw_data/{self.cluster_name}_eris_pm.csv", index=False, header=True)
+        metadata["eris_mean_mass"] = mean_mass
 
         # Gaia PM
         (
@@ -1153,6 +1291,27 @@ class Observations:
 
         PM.add_metadata("source", "Gaia")
         cf.add_dataset(PM)
+
+
+        # Now the ERIS data
+        ERIS_fn = pathlib.Path(f"./raw_data/{self.cluster_name}_eris_pm.csv")
+        keys = "r", "σ_R", "Δσ_R", "σ_T", "Δσ_T"
+        names = {"σ_R": "PM_R", "σ_T": "PM_T"}
+        err = {"Δσ_R": "PM_R", "Δσ_T": "PM_T"}
+        units = {
+            "r": "arcsec",
+            "σ_R": "mas/yr",
+            "σ_T": "mas/yr",
+            "Δσ_R": "mas/yr",
+            "Δσ_T": "mas/yr",
+        }
+        PM = Dataset("proper_motion/ERIS")
+        PM.read_data(ERIS_fn, delim=r",", keys=keys, units=units, errors=err, names=names)
+        if include_masses:
+            PM.add_metadata("m", float(metadata["eris_mean_mass"]))
+        PM.add_metadata("source", "ERIS")
+        cf.add_dataset(PM)
+
 
         # now the number density data
 
