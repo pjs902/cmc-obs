@@ -103,7 +103,7 @@ def logL(theta, data, errs):
 
     # uniform priors around the data mean and std
     prior = jax.scipy.stats.uniform.logpdf(loc=mu_data - 10, scale=20, x=mu) + jax.scipy.stats.uniform.logpdf(
-        loc=0, scale=20, x=sigma
+        loc=0, scale=25, x=sigma
     )
 
     # prior = jax.scipy.stats.uniform.logpdf(loc=-500, scale=1000, x=mu) + jax.scipy.stats.uniform.logpdf(loc=0, scale=50, x=sigma)
@@ -124,10 +124,6 @@ def inference_loop(rng_key, kernel, initial_state, num_samples):
 
 
 def comp_veldisp(vi, ei):
-    # sampler parameters
-    inv_mass_matrix = np.array([0.5, 0.01])
-    step_size = 1e-3
-
     # log likelihood with data frozen in
     like = partial(logL, data=vi, errs=ei)
 
@@ -136,13 +132,13 @@ def comp_veldisp(vi, ei):
 
     # do warm up
     warmup = blackjax.window_adaptation(blackjax.nuts, like)
-    (state, parameters), _ = warmup.run(rng_key, initial_position, num_steps=1000)
+    (state, parameters), _ = warmup.run(rng_key, initial_position, num_steps=2000)
 
     # set up kernel
     kernel = blackjax.nuts(like, **parameters).step
 
     # do inference
-    states = inference_loop(rng_key, kernel, state, 1_000)
+    states = inference_loop(rng_key, kernel, state, 2000)
 
     # get samples
     mu_samples = states.position["mu"].block_until_ready()
@@ -583,12 +579,12 @@ class Observations:
         logging.info(f"LOS: number of giants, prefilter = {len(giants)}")
 
         # select only stars with G mag <17 based on Holger's compilations
-        giants = giants.loc[giants["obsMag_GaiaG"] < 17]
+        giants = giants.loc[giants["obsMag_GaiaG"] < mag_lim_faint]
 
         logging.info(f"LOS: number of giants, postfilter = {len(giants)}")
 
-        # generate errors drawn from a gaussian with sigma = 1 km/s
-        errs = np.ones(len(giants)) * 1.0
+        # generate errors drawn from a gaussian with sigma = per_star_err km/s
+        errs = np.ones(len(giants)) * per_star_err
 
         # resample based on errors
         kms = self.rng.normal(loc=giants["vz[KM/S]"].values, scale=errs)
