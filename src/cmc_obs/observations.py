@@ -501,6 +501,10 @@ class Observations:
         """
         Simulate proper motion measurements with ERIS-like performance.
 
+        NOTE: These numbers are totally made up for now, will fill in later. Real data will be
+        pretty heterogeneous, depends on what the HACKS baseline is, whether there is already central JWST
+        data, etc.
+
         Parameters
         ----------
         stars_per_bin : int
