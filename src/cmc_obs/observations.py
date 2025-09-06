@@ -492,10 +492,10 @@ class Observations:
         stars_per_bin=-1,
         r_outer=13,
         mag_lim_bright=15,
-        mag_lim_faint=18,
-        per_star_err=0.05,
+        mag_lim_faint=21,
+        per_star_err=0.001,
         *,
-        max_per_bin=200,
+        max_per_bin=250,
         min_per_bin=120,
     ):
         """
