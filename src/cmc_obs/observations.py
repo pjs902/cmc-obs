@@ -89,7 +89,9 @@ def comp_veldisp_MLE(vi, ei, guess_sigma_c=None, guess_vbar=None):
 
 # likelihood function for points with gaussian errors drawn from a gaussian (eq 5.64 in astroML book)
 def logp(mu, sigma, data, errs):
-    return -0.5 * jnp.sum(jnp.log(sigma**2 + errs**2) + (((data - mu) ** 2) / (sigma**2 + errs**2)))
+    return -0.5 * jnp.sum(
+        jnp.log(sigma**2 + errs**2) + (((data - mu) ** 2) / (sigma**2 + errs**2))
+    )
 
 
 # log posterior
@@ -102,9 +104,9 @@ def logL(theta, data, errs):
     sigma_data = jnp.std(data)
 
     # uniform priors around the data mean and std
-    prior = jax.scipy.stats.uniform.logpdf(loc=mu_data - 10, scale=20, x=mu) + jax.scipy.stats.uniform.logpdf(
-        loc=0, scale=25, x=sigma
-    )
+    prior = jax.scipy.stats.uniform.logpdf(
+        loc=mu_data - 10, scale=20, x=mu
+    ) + jax.scipy.stats.uniform.logpdf(loc=0, scale=25, x=sigma)
 
     # prior = jax.scipy.stats.uniform.logpdf(loc=-500, scale=1000, x=mu) + jax.scipy.stats.uniform.logpdf(loc=0, scale=50, x=sigma)
 
@@ -214,7 +216,9 @@ def veldisp_profile(x, vi, ei, stars_per_bin=15, show_progress=False):
     return bin_centers, sigma, delta_sigma
 
 
-def create_binning(xs, prepend_bins, append_bins, middle_bin_size=None, N_middle_bins=None):
+def create_binning(
+    xs, prepend_bins, append_bins, middle_bin_size=None, N_middle_bins=None
+):
     """
     Create binning for things like dispersion profiles. Allows for you to specify some starting and
     ending bins with custom bin sizes, filling in the middle with bins of uniform size. The middle bins
@@ -260,7 +264,9 @@ def create_binning(xs, prepend_bins, append_bins, middle_bin_size=None, N_middle
 
     append_bins[-1] += N_extra
 
-    bins = np.concatenate([prepend_bins, np.repeat(stars_per_bin, N_middle_bins), append_bins])
+    bins = np.concatenate(
+        [prepend_bins, np.repeat(stars_per_bin, N_middle_bins), append_bins]
+    )
 
     assert sum(bins) == N
 
@@ -309,7 +315,11 @@ class Observations:
 
         # add photometry
         if add_photometry:
-            filttable = ck.load_default_filters() if filtindex is None else ck.load_filtertable(filtindex)
+            filttable = (
+                ck.load_default_filters()
+                if filtindex is None
+                else ck.load_filtertable(filtindex)
+            )
             self.snapshot.add_photometry(filttable)
 
         self.cluster_name = cluster_name
@@ -332,8 +342,12 @@ class Observations:
         self.snapshot.bh_radii_proj = pd.concat(
             [
                 self.snapshot.data.loc[(self.snapshot.data["startype"] == 14)]["d[PC]"],
-                self.snapshot.data.loc[(self.snapshot.data["bin_startype0"] == 14)]["d[PC]"],
-                self.snapshot.data.loc[(self.snapshot.data["bin_startype1"] == 14)]["d[PC]"],
+                self.snapshot.data.loc[(self.snapshot.data["bin_startype0"] == 14)][
+                    "d[PC]"
+                ],
+                self.snapshot.data.loc[(self.snapshot.data["bin_startype1"] == 14)][
+                    "d[PC]"
+                ],
             ],
             axis=0,
         ).to_list()
@@ -341,23 +355,43 @@ class Observations:
         self.snapshot.bh_radii_3d = pd.concat(
             [
                 self.snapshot.data.loc[(self.snapshot.data["startype"] == 14)]["r[PC]"],
-                self.snapshot.data.loc[(self.snapshot.data["bin_startype0"] == 14)]["r[PC]"],
-                self.snapshot.data.loc[(self.snapshot.data["bin_startype1"] == 14)]["r[PC]"],
+                self.snapshot.data.loc[(self.snapshot.data["bin_startype0"] == 14)][
+                    "r[PC]"
+                ],
+                self.snapshot.data.loc[(self.snapshot.data["bin_startype1"] == 14)][
+                    "r[PC]"
+                ],
             ],
             axis=0,
         ).to_list()
         self.snapshot.bh_masses = pd.concat(
             [
-                self.snapshot.data.loc[(self.snapshot.data["startype"] == 14)]["m_MSUN"],
-                self.snapshot.data.loc[(self.snapshot.data["bin_startype0"] == 14)]["m0_MSUN"],
-                self.snapshot.data.loc[(self.snapshot.data["bin_startype1"] == 14)]["m1_MSUN"],
+                self.snapshot.data.loc[(self.snapshot.data["startype"] == 14)][
+                    "m_MSUN"
+                ],
+                self.snapshot.data.loc[(self.snapshot.data["bin_startype0"] == 14)][
+                    "m0_MSUN"
+                ],
+                self.snapshot.data.loc[(self.snapshot.data["bin_startype1"] == 14)][
+                    "m1_MSUN"
+                ],
             ],
             axis=0,
         ).to_list()
         self.snapshot.M_BH = np.sum(self.snapshot.bh_masses)
         self.snapshot.N_BH = len(self.snapshot.bh_masses)
 
-    def hubble_PMs(self, stars_per_bin=-1, r_outer=100, mag_lim_bright=15, mag_lim_faint=18, per_star_err=0.1, *, max_per_bin=99999, min_per_bin=120):
+    def hubble_PMs(
+        self,
+        stars_per_bin=-1,
+        r_outer=100,
+        mag_lim_bright=15,
+        mag_lim_faint=18,
+        per_star_err=0.1,
+        *,
+        max_per_bin=99999,
+        min_per_bin=120,
+    ):
         """
         Simulate proper motion measurements with HST-like performance.
         (performance details from VHB2019)
@@ -453,7 +487,17 @@ class Observations:
 
         return bin_centers, sigma_r, delta_sigma_r, sigma_t, delta_sigma_t, mean_mass
 
-    def ERIS_PMs(self, stars_per_bin=-1, r_outer=13, mag_lim_bright=15, mag_lim_faint=20, per_star_err=0.05, *, max_per_bin=300, min_per_bin=120):
+    def ERIS_PMs(
+        self,
+        stars_per_bin=-1,
+        r_outer=13,
+        mag_lim_bright=15,
+        mag_lim_faint=18,
+        per_star_err=0.05,
+        *,
+        max_per_bin=200,
+        min_per_bin=120,
+    ):
         """
         Simulate proper motion measurements with ERIS-like performance.
 
@@ -495,7 +539,6 @@ class Observations:
         rad_lim = (r_outer * u.arcsec).to(u.pc).value
 
         # select only stars with V 15 to 18 based on looking at some of the HACKS photometry tables
-
         stars = stars.loc[
             (stars["tot_obsMag_V"] < mag_lim_faint)
             & (stars["tot_obsMag_V"] > mag_lim_bright)
@@ -548,7 +591,16 @@ class Observations:
 
         return bin_centers, sigma_r, delta_sigma_r, sigma_t, delta_sigma_t, mean_mass
 
-    def gaia_PMs(self, stars_per_bin=-1, r_inner=100, mag_lim_bright=13, mag_lim_faint=19, *, min_per_bin=120, max_per_bin=1500):
+    def gaia_PMs(
+        self,
+        stars_per_bin=-1,
+        r_inner=100,
+        mag_lim_bright=13,
+        mag_lim_faint=19,
+        *,
+        min_per_bin=120,
+        max_per_bin=1500,
+    ):
         """
         Simulate proper motion measurements with Gaia-like performance.
         (performance details from VHB2019 and https://www.cosmos.esa.int/web/gaia/earlydr3)
@@ -669,7 +721,9 @@ class Observations:
         """
 
         # select only giants (No Binaries, there is some filtering in the real data, not sure we want to get into that)
-        giants = self.snapshot.data.loc[(self.snapshot.data["startype"].isin([3, 4, 5, 6, 7, 8]))]
+        giants = self.snapshot.data.loc[
+            (self.snapshot.data["startype"].isin([3, 4, 5, 6, 7, 8]))
+        ]
 
         logging.info(f"LOS: number of giants, prefilter = {len(giants)}")
 
@@ -765,7 +819,9 @@ class Observations:
             number_density[i] = len(sel) / (np.pi * (bin_max**2 - bin_min**2))
 
             # calculate error
-            delta_number_density[i] = np.sqrt(len(sel)) / (np.pi * (bin_max**2 - bin_min**2))
+            delta_number_density[i] = np.sqrt(len(sel)) / (
+                np.pi * (bin_max**2 - bin_min**2)
+            )
 
         # get mean mass for this profile
         mean_mass = np.mean(stars["m[MSUN]"])
@@ -852,8 +908,10 @@ class Observations:
         sel = sel.loc[sel["m[MSUN]"] > (limiting_mass - 0.1)]
 
         if sel.empty:
-            raise RuntimeError(f'Could not make MF between {r_in} - {r_out}, '
-                               f'no stars above {limiting_mass - 0.1=}')
+            raise RuntimeError(
+                f"Could not make MF between {r_in} - {r_out}, "
+                f"no stars above {limiting_mass - 0.1=}"
+            )
 
         # update lower mass limits for histogram
         lower = np.min(sel["m[MSUN]"])
@@ -877,10 +935,17 @@ class Observations:
 
         return edges, new_heights, err
 
-    def write_obs(self, hubble_kwargs=None, gaia_kwargs=None, eris_kwargs=None, LOS_kwargs=None,
-                  nd_kwargs=None, mf_kwargs=None,
-                  inner_annuli=[(0, 0.4), (0.4, 0.8), (0.8, 1.2), (1.2, 1.6)],
-                  outer_annuli_centers=[2.5, 5, 6, 7.5, 10, 11, 12, 17.5]):
+    def write_obs(
+        self,
+        hubble_kwargs=None,
+        gaia_kwargs=None,
+        eris_kwargs=None,
+        LOS_kwargs=None,
+        nd_kwargs=None,
+        mf_kwargs=None,
+        inner_annuli=[(0, 0.4), (0.4, 0.8), (0.8, 1.2), (1.2, 1.6)],
+        outer_annuli_centers=[2.5, 5, 6, 7.5, 10, 11, 12, 17.5],
+    ):
         """
         Write the simulated observations to a file.
         """
@@ -931,7 +996,9 @@ class Observations:
         df = df.dropna()
 
         # write to file
-        df.to_csv(f"./raw_data/{self.cluster_name}_hubble_pm.csv", index=False, header=True)
+        df.to_csv(
+            f"./raw_data/{self.cluster_name}_hubble_pm.csv", index=False, header=True
+        )
         metadata["hubble_mean_mass"] = mean_mass
 
         # ERIS PM
@@ -964,7 +1031,9 @@ class Observations:
         df = df.dropna()
 
         # write to file
-        df.to_csv(f"./raw_data/{self.cluster_name}_eris_pm.csv", index=False, header=True)
+        df.to_csv(
+            f"./raw_data/{self.cluster_name}_eris_pm.csv", index=False, header=True
+        )
         metadata["eris_mean_mass"] = mean_mass
 
         # Gaia PM
@@ -999,7 +1068,9 @@ class Observations:
         df = df.dropna()
 
         # write to file
-        df.to_csv(f"./raw_data/{self.cluster_name}_gaia_pm.csv", index=False, header=True)
+        df.to_csv(
+            f"./raw_data/{self.cluster_name}_gaia_pm.csv", index=False, header=True
+        )
         metadata["gaia_mean_mass"] = mean_mass
 
         # LOS Dispersion
@@ -1110,10 +1181,12 @@ class Observations:
         for i in range(len(annuli)):
             # print(f"making mass function for {annuli[i]}")
             try:
-                mass_edges, mass_function, delta_mass_function = self.mass_function(r_in=annuli[i][0], r_out=annuli[i][1], **mf_kwargs)
+                mass_edges, mass_function, delta_mass_function = self.mass_function(
+                    r_in=annuli[i][0], r_out=annuli[i][1], **mf_kwargs
+                )
             except RuntimeError:
                 # logging.info(f'Failed to make MF between {annuli[i]}')
-                logging.warning(f'Failed to make MF between {annuli[i]}')
+                logging.warning(f"Failed to make MF between {annuli[i]}")
                 continue
 
             for _ in range(len(mass_function)):
@@ -1251,7 +1324,9 @@ class Observations:
         }
         PM = Dataset("proper_motion/Hubble")
 
-        PM.read_data(Hubble_fn, delim=r",", keys=keys, units=units, errors=err, names=names)
+        PM.read_data(
+            Hubble_fn, delim=r",", keys=keys, units=units, errors=err, names=names
+        )
         if include_masses:
             PM.add_metadata("m", float(metadata["hubble_mean_mass"]))
 
@@ -1275,7 +1350,9 @@ class Observations:
         }
         PM = Dataset("proper_motion/Gaia")
 
-        PM.read_data(Gaia_fn, delim=r",", keys=keys, units=units, errors=err, names=names)
+        PM.read_data(
+            Gaia_fn, delim=r",", keys=keys, units=units, errors=err, names=names
+        )
 
         if include_masses:
             PM.add_metadata("m", float(metadata["gaia_mean_mass"]))
@@ -1296,7 +1373,9 @@ class Observations:
             "Δσ_T": "mas/yr",
         }
         PM = Dataset("proper_motion/ERIS")
-        PM.read_data(ERIS_fn, delim=r",", keys=keys, units=units, errors=err, names=names)
+        PM.read_data(
+            ERIS_fn, delim=r",", keys=keys, units=units, errors=err, names=names
+        )
         if include_masses:
             PM.add_metadata("m", float(metadata["eris_mean_mass"]))
         PM.add_metadata("source", "ERIS")
@@ -1331,7 +1410,11 @@ class Observations:
         err = {"ΔN": "N"}
         fields = {}
         # just a huge square
-        fields["CMC"] = {"a": np.array([[2.0, 2.0], [2.0, -2.0], [-2.0, -2.0], [-2.0, 2.0]], dtype="f")}
+        fields["CMC"] = {
+            "a": np.array(
+                [[2.0, 2.0], [2.0, -2.0], [-2.0, -2.0], [-2.0, 2.0]], dtype="f"
+            )
+        }
         MF = Dataset("mass_function/CMC")
         mf_df = pd.read_csv(f"./raw_data/{self.cluster_name}_mass_function.csv")
 
@@ -1467,7 +1550,9 @@ def ND_limiting_mass(ND):
     ]
 
     # interpolate the data
-    lim_spl = sp.interpolate.interp1d(x=nds, y=ms, kind="linear", bounds_error=False, fill_value=(0.13, 0.8))
+    lim_spl = sp.interpolate.interp1d(
+        x=nds, y=ms, kind="linear", bounds_error=False, fill_value=(0.13, 0.8)
+    )
 
     # return the interpolated value
     return lim_spl(ND)
