@@ -453,10 +453,6 @@ class Observations:
 
         return bin_centers, sigma_r, delta_sigma_r, sigma_t, delta_sigma_t, mean_mass
 
-
-
-
-
     def ERIS_PMs(self, stars_per_bin=-1, r_outer=13, mag_lim_bright=15, mag_lim_faint=20, per_star_err=0.05, *, max_per_bin=300, min_per_bin=120):
         """
         Simulate proper motion measurements with ERIS-like performance.
@@ -551,10 +547,6 @@ class Observations:
         bin_centers = (bin_centers * u.pc).to(u.arcsec).value
 
         return bin_centers, sigma_r, delta_sigma_r, sigma_t, delta_sigma_t, mean_mass
-
-
-
-
 
     def gaia_PMs(self, stars_per_bin=-1, r_inner=100, mag_lim_bright=13, mag_lim_faint=19, *, min_per_bin=120, max_per_bin=1500):
         """
@@ -942,7 +934,6 @@ class Observations:
         df.to_csv(f"./raw_data/{self.cluster_name}_hubble_pm.csv", index=False, header=True)
         metadata["hubble_mean_mass"] = mean_mass
 
-
         # ERIS PM
         (
             bin_centers,
@@ -1292,7 +1283,6 @@ class Observations:
         PM.add_metadata("source", "Gaia")
         cf.add_dataset(PM)
 
-
         # Now the ERIS data
         ERIS_fn = pathlib.Path(f"./raw_data/{self.cluster_name}_eris_pm.csv")
         keys = "r", "σ_R", "Δσ_R", "σ_T", "Δσ_T"
@@ -1311,7 +1301,6 @@ class Observations:
             PM.add_metadata("m", float(metadata["eris_mean_mass"]))
         PM.add_metadata("source", "ERIS")
         cf.add_dataset(PM)
-
 
         # now the number density data
 
@@ -1360,6 +1349,14 @@ class Observations:
 
         # write the datafile
         cf.save(force=True)
+
+        # very strange JAX errors happening, "LLVM compilation error: Cannot allocate memory" " failure to materialize fused symbols, etc"
+        # clear JAX caches after writing data file? this never happens on the first write out.
+        # see discussion here: https://github.com/jax-ml/jax/issues/10828
+
+        # TODO: This should be strictly unnecessary, try removing it in the future
+        jax.clear_caches()
+        jax.clear_backends()
 
     def write_cluster_data(self):
         """
