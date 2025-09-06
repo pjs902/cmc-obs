@@ -600,10 +600,11 @@ class Observations:
         *,
         min_per_bin=120,
         max_per_bin=1500,
+        gaia_DR="DR3",
     ):
         """
-        Simulate proper motion measurements with Gaia-like performance.
-        (performance details from VHB2019 and https://www.cosmos.esa.int/web/gaia/earlydr3)
+        Simulate proper motion measurements with Gaia-like performance. (performance details from
+        VHB2019 and https://www.cosmos.esa.int/web/gaia/earlydr3)
 
         Parameters
         ----------
@@ -615,6 +616,12 @@ class Observations:
             Bright magnitude limit for Gaia measurements. Default is 13.
         mag_lim_faint : float
             Faint magnitude limit for Gaia measurements. Default is 19.
+        gaia_DR : str
+            Gaia data release performance to use. Options are 'DR3', 'DR4', 'DR5'. Default is 'DR3'.
+            DR4 and DR5 have improved proper motion uncertainties due to longer time baselines and
+            more measurements. DR4 gives a factor of 2 sqrt(2) improvement over DR3, DR5 gives
+            another factor of 2.8 improvement over DR4. These numbers are from A.G.A. Brown, 2025.
+            (2025arXiv250301533B)
 
         Returns
         -------
@@ -628,7 +635,14 @@ class Observations:
             Array of velocity dispersions in the tangential direction, units of mas/yr.
         delta_sigma_t : array_like
             Array of velocity dispersion uncertainties in the tangential direction, units of mas/yr.
+        mean_mass : float, optional
+            Mean mass of the stars in the sample, units of solar masses.
         """
+
+        # make sure Gaia DR is valid, options are DR3, DR4, DR5
+        if gaia_DR not in ["DR3", "DR4", "DR5"]:
+            msg = "Gaia DR must be one of 'DR3', 'DR4', or 'DR5'"
+            raise ValueError(msg)
 
         # select MS stars
         stars = self.snapshot.data.loc[
@@ -660,6 +674,15 @@ class Observations:
 
         # Gaia error function
         err = np.array([gaia_err_func(G) for G in stars["tot_obsMag_GaiaG"]])
+
+        # depending on the DR, improve the errors according to time baseline
+        # the current performance is based on DR3 which has a time baseline of 34 months
+        # DR4 moves to 66 months, giving a 2sqrt(2) improvement
+        # DR5 has a baseline of 10.5 years, expect another factor of 2.8 improvement over DR4
+        if gaia_DR == "DR4":
+            err /= 2.0 * np.sqrt(2)
+        elif gaia_DR == "DR5":
+            err /= 2.0 * np.sqrt(2) * 2.8
 
         # convert to km/s
         errs = (err * u.Unit("mas/yr")).to(u.km / u.s).value
