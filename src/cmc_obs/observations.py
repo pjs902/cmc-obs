@@ -1289,7 +1289,13 @@ class Observations:
         include_masses : bool
             Whether to include the mean masses of each dataset in the Observations file. Default is False.
             We wouldn't know this in the real world, so we don't include it by default but it can be useful for testing.
+        obskwargs : dict
+            Keyword arguments to pass to the write_obs function.
         """
+
+        # print out the extra kwargs
+        if obskwargs:
+            print(f"create_datafile: obskwargs = {obskwargs}")
 
         # first, write out the data just in case it hasn't been done yet
         self.write_obs(**obskwargs)
@@ -1384,7 +1390,10 @@ class Observations:
         if include_masses:
             PM.add_metadata("m", float(metadata["gaia_mean_mass"]))
 
-        PM.add_metadata("source", "Gaia")
+        # indicate which DR was used to generate the data
+        PM.add_metadata(
+            "source", f"Gaia {obskwargs.get('gaia_kwargs', {}).get('gaia_DR', 'DR3')}"
+        )
         cf.add_dataset(PM)
 
         # Now the ERIS data
