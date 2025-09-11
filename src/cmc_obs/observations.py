@@ -491,17 +491,14 @@ class Observations:
         self,
         stars_per_bin=-1,
         r_outer=13,
-        mag_lim_bright=10.5,
-        mag_lim_faint=17.5,
-        # per_star_err=0.05,
+        mag_lim_bright=10.25,
+        mag_lim_faint=22.0,
         *,
         max_per_bin=250,
         min_per_bin=120,
     ):
         """
-        Simulate proper motion measurements with ERIS-like performance.
-
-        NOTE: These numbers based on NACO data for now, will fill in later. Real performance is coming.
+        Simulate proper motion measurements with ERIS + HST ACS HRC, ~20 year baseline, 180s exposure on ERIS.
 
         Parameters
         ----------
@@ -513,8 +510,6 @@ class Observations:
             Bright magnitude limit for ERIS measurements. Default is 15.
         mag_lim_faint : float
             Faint magnitude limit for ERIS measurements. Default is 20.
-        per_star_err : float
-            Per-star proper motion error, units of mas/yr. Default is 0.05.
 
         Returns
         -------
@@ -557,11 +552,7 @@ class Observations:
 
         logging.info(f"ERISPM: stars per bin = {stars_per_bin}")
 
-        # uncertainty of 0.05 mas/yr
-        # err = (per_star_err * u.Unit("mas/yr")).to(u.km / u.s).value
-        # errs = np.ones(len(stars)) * err
-
-        # get errors based on magnitude, based on NACO numbers for now
+        # get errors based on magnitude, based on simulated ERIS data
         errs = np.array([eris_err_func(K) for K in stars["tot_obsMag_K"]])
 
         # resample based on errors
@@ -936,9 +927,8 @@ class Observations:
         sel = sel.loc[sel["m[MSUN]"] > (limiting_mass - 0.1)]
 
         if sel.empty:
-            raise RuntimeError(
-                f"Could not make MF between {r_in} - {r_out}, no stars above {limiting_mass - 0.1=}"
-            )
+            msg = f"Could not make MF between {r_in} - {r_out}, no stars above {limiting_mass - 0.1=}"
+            raise RuntimeError(msg)
 
         # update lower mass limits for histogram
         lower = np.min(sel["m[MSUN]"])
@@ -1598,9 +1588,8 @@ def eris_err_func(Ks):
     """
     Get approximate errors for ERIS astrometric measurements.
 
-    Based on the performance of NACO data from Haeberle+2021, with double the time baseline.
-
-    This will be updated to more realistic numbers, whether that will be in terms of K-band or some HST band is TBD.
+    This assumes a ~20 year time baseline between initial HST ACS HRC and a 180s ERIS
+    exposure in K-band. Numbers subject to change as we develop the ERIS simulator.
 
     Parameters
     ----------
@@ -1613,9 +1602,50 @@ def eris_err_func(Ks):
         Error in mas/yr.
     """
 
-    mags = np.array([12.0, 12.67, 13.33, 14.0, 14.67, 15.33, 16.0, 16.67, 17.33, 18.0])
-    errs = np.array(
-        [0.015, 0.015, 0.015, 0.017, 0.02588889, 0.04188889, 0.075, 0.075, 0.075, 0.075]
-    )
+    mags = [
+        10.242424,
+        10.86124379,
+        11.48006358,
+        12.09888337,
+        12.71770316,
+        13.33652295,
+        13.95534274,
+        14.57416253,
+        15.19298232,
+        15.81180211,
+        16.43062189,
+        17.04944168,
+        17.66826147,
+        18.28708126,
+        18.90590105,
+        19.52472084,
+        20.14354063,
+        20.76236042,
+        21.38118021,
+        22.0,
+    ]
+    errs = [
+        0.010255,
+        0.010255,
+        0.01025521,
+        0.01025632,
+        0.010258,
+        0.010261,
+        0.01026663,
+        0.01027721,
+        0.01030005,
+        0.01034932,
+        0.010465,
+        0.010759,
+        0.01152847,
+        0.01350332,
+        0.01815042,
+        0.02785568,
+        0.04634732,
+        0.07996246,
+        0.13994194,
+        0.246257,
+    ]
+
     # return interpolated error, filling in left and right edges with 0.015 and 0.075 respectively.
     return np.interp(Ks, mags, errs)
