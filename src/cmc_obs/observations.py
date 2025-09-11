@@ -491,9 +491,9 @@ class Observations:
         self,
         stars_per_bin=-1,
         r_outer=13,
-        mag_lim_bright=15,
-        mag_lim_faint=20,
-        per_star_err=0.05,
+        mag_lim_bright=10.5,
+        mag_lim_faint=16.5,
+        # per_star_err=0.05,
         *,
         max_per_bin=250,
         min_per_bin=120,
@@ -544,8 +544,8 @@ class Observations:
 
         # select only stars with V 15 to 18 based on looking at some of the HACKS photometry tables
         stars = stars.loc[
-            (stars["tot_obsMag_V"] < mag_lim_faint)
-            & (stars["tot_obsMag_V"] > mag_lim_bright)
+            (stars["tot_obsMag_K"] < mag_lim_faint)
+            & (stars["tot_obsMag_K"] > mag_lim_bright)
             & (stars["d[PC]"] < rad_lim)
         ]
         logging.info(f"ERISPM: number of stars, postfilter = {len(stars)}")
@@ -560,8 +560,11 @@ class Observations:
         logging.info(f"ERISPM: stars per bin = {stars_per_bin}")
 
         # uncertainty of 0.05 mas/yr
-        err = (per_star_err * u.Unit("mas/yr")).to(u.km / u.s).value
-        errs = np.ones(len(stars)) * err
+        # err = (per_star_err * u.Unit("mas/yr")).to(u.km / u.s).value
+        # errs = np.ones(len(stars)) * err
+
+        # get errors based on magnitude, based on NACO numbers for now
+        errs = np.array([eris_err_func(K) for K in stars["tot_obsMag_K"]])
 
         # resample based on errors
         kms_r = self.rng.normal(loc=stars["vd[KM/S]"].values, scale=errs)
@@ -936,8 +939,7 @@ class Observations:
 
         if sel.empty:
             raise RuntimeError(
-                f"Could not make MF between {r_in} - {r_out}, "
-                f"no stars above {limiting_mass - 0.1=}"
+                f"Could not make MF between {r_in} - {r_out}, no stars above {limiting_mass - 0.1=}"
             )
 
         # update lower mass limits for histogram
@@ -1592,3 +1594,30 @@ def ND_limiting_mass(ND):
 
     # return the interpolated value
     return lim_spl(ND)
+
+
+def eris_err_func(Ks):
+    """
+    Get approximate errors for ERIS astrometric measurements.
+
+    Based on the performance of NACO data from Haeberle+2021, with double the time baseline.
+
+    This will be updated to more realistic numbers, whether that will be in terms of K-band or some HST band is TBD.
+
+    Parameters
+    ----------
+    K : float
+        K-band magnitude.
+
+    Returns
+    -------
+    err : float
+        Error in mas/yr.
+    """
+
+    mags = np.array([12.0, 12.67, 13.33, 14.0, 14.67, 15.33, 16.0, 16.67, 17.33, 18.0])
+    errs = np.array(
+        [0.015, 0.015, 0.015, 0.017, 0.02588889, 0.04188889, 0.075, 0.075, 0.075, 0.075]
+    )
+    # return interpolated error, filling in left and right edges with 0.015 and 0.075 respectively.
+    return np.interp(Ks, mags, errs)
