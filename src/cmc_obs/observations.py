@@ -492,7 +492,7 @@ class Observations:
         stars_per_bin=-1,
         r_outer=13,
         mag_lim_bright=10.5,
-        mag_lim_faint=16.5,
+        mag_lim_faint=17.5,
         # per_star_err=0.05,
         *,
         max_per_bin=250,
@@ -501,9 +501,7 @@ class Observations:
         """
         Simulate proper motion measurements with ERIS-like performance.
 
-        NOTE: These numbers are totally made up for now, will fill in later. Real data will be
-        pretty heterogeneous, depends on what the HACKS baseline is, whether there is already central JWST
-        data, etc.
+        NOTE: These numbers based on NACO data for now, will fill in later. Real performance is coming.
 
         Parameters
         ----------
