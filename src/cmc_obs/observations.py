@@ -658,7 +658,7 @@ class Observations:
 
         # take 50% of these stars to simulate crowding issues, no idea if this is sensible but just
         # getting way too many stars at the moment
-        stars = stars.sample(frac=0.5)
+        # stars = stars.sample(frac=0.5)
 
         logging.info(f"ERISPM: number of stars, post-crowding = {len(stars)}")
 
