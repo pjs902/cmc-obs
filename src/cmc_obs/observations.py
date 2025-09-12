@@ -184,23 +184,14 @@ def comp_veldisp_pocoMC(vi, ei):
     )
 
     def log_likelihood(theta):
-        print(theta)
-
-        # this passes in a list of parameter pairs
-        theta = np.array(theta)
-
-        # extract parameters
-        mu = theta[:, 0]
-        sigma = theta[:, 1]
-
-        print(mu, sigma)
+        mu, sigma = theta
 
         return -0.5 * np.sum(
             np.log(sigma**2 + ei**2) + (((vi - mu) ** 2) / (sigma**2 + ei**2))
         )
 
     sampler = pc.Sampler(
-        prior=prior, likelihood=log_likelihood, vectorize=True, random_state=42
+        prior=prior, likelihood=log_likelihood, vectorize=False, random_state=42
     )
 
     sampler.run()
