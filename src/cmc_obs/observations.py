@@ -184,7 +184,8 @@ def comp_veldisp_pocoMC(vi, ei):
     )
 
     def log_likelihood(theta):
-        mu, sigma = theta
+        mu = theta[0]
+        sigma = theta[1]
         return -0.5 * np.sum(
             np.log(sigma**2 + ei**2) + (((vi - mu) ** 2) / (sigma**2 + ei**2))
         )
