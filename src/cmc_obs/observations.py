@@ -492,7 +492,7 @@ class Observations:
         stars_per_bin=-1,
         r_outer=13,
         mag_lim_bright=10.25,
-        mag_lim_faint=21.5,
+        mag_lim_faint=20.0,
         *,
         max_per_bin=250,
         min_per_bin=120,
@@ -542,6 +542,12 @@ class Observations:
             & (stars["d[PC]"] < rad_lim)
         ]
         logging.info(f"ERISPM: number of stars, postfilter = {len(stars)}")
+
+        # take 50% of these stars to simulate crowding issues, no idea if this is sensible but just
+        # getting way too many stars at the moment
+        stars = stars.sample(frac=0.5, random_state=42)
+
+        logging.info(f"ERISPM: number of stars, post-crowding = {len(stars)}")
 
         # calculate how many stars per bin to use
         # require at least 120 stars per bin, at most 500, target 5 bins
