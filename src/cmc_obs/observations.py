@@ -1576,8 +1576,8 @@ class Observations:
         # see discussion here: https://github.com/jax-ml/jax/issues/10828
 
         # TODO: This should be strictly unnecessary, try removing it in the future
-        jax.clear_caches()
-        jax.clear_backends()
+        # jax.clear_caches()
+        # jax.clear_backends()
 
     def write_cluster_data(self):
         """
