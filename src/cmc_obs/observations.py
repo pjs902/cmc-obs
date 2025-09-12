@@ -22,6 +22,8 @@ import scipy as sp
 
 import pocomc as pc
 
+import emcee
+
 # jax setup
 jax.config.update("jax_enable_x64", True)
 
@@ -202,6 +204,56 @@ def comp_veldisp_pocoMC(vi, ei):
     return np.mean(sigma_samples), np.std(sigma_samples)
 
 
+def comp_veldisp_emcee(vi, ei):
+    """
+    Again, usual velocity dispersion calculation, but inference is with emcee.
+
+    Parameters
+    ----------
+    vi : array_like
+        Array of velocities.
+    ei : array_like
+        Array of velocity uncertainties.
+    Returns
+    -------
+    sigma : float
+        Velocity dispersion.
+    delta_sigma : float
+        Uncertainty in velocity dispersion.
+    """
+
+    def log_likelihood(theta):
+        mu, sigma = theta
+        if sigma <= 0:
+            return -np.inf
+        return -0.5 * np.sum(
+            np.log(sigma**2 + ei**2) + (((vi - mu) ** 2) / (sigma**2 + ei**2))
+        )
+
+    initial_position = np.array([np.mean(vi), np.std(vi)])
+
+    # Set up the sampler
+    nwalkers = 50
+    ndim = 2
+    sampler = emcee.EnsembleSampler(nwalkers, ndim, log_likelihood)
+
+    # Initialize the walkers
+    p0 = [initial_position + 1e-4 * np.random.randn(ndim) for _ in range(nwalkers)]
+    sampler.run_mcmc(p0, 2000, progress=False)
+
+    # Get the samples
+    samples = sampler.get_chain(flat=True)
+
+    # burn-in
+    samples = samples[1000:]
+
+    # Compute the statistics
+    sigma = np.std(samples[:, 1])
+    delta_sigma = np.std(samples[:, 1])
+
+    return sigma, delta_sigma
+
+
 def veldisp_profile(x, vi, ei, stars_per_bin=15, show_progress=False):
     """
     Compute velocity dispersion profile from velocity dispersion measurements and their uncertainties.
@@ -256,7 +308,7 @@ def veldisp_profile(x, vi, ei, stars_per_bin=15, show_progress=False):
         end = np.min([start + int(stars_per_bin[i]), len(x)])
         # calculate velocity dispersion
         # sigma[i], delta_sigma[i] = comp_veldisp(vi[start:end], ei[start:end])
-        sigma[i], delta_sigma[i] = comp_veldisp_pocoMC(vi[start:end], ei[start:end])
+        sigma[i], delta_sigma[i] = comp_veldisp_emcee(vi[start:end], ei[start:end])
         bin_centers[i] = np.mean(x[start:end])
 
         start += int(stars_per_bin[i])
