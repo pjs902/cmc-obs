@@ -329,6 +329,75 @@ def veldisp_profile(x, vi, ei, stars_per_bin=15, show_progress=False):
     return bin_centers, sigma, delta_sigma
 
 
+def veldisp_profile_radial_binning(x, vi, ei, bin_size, show_progress=False):
+    """
+    Compute velocity dispersion profile from velocity dispersion measurements and their uncertainties.
+    Creates bins with equal number of stars in each bin.
+
+    Parameters
+    ----------
+    x : array_like
+        Array of x values (projected radial distances).
+    vi : array_like
+        Array of velocities.
+    ei : array_like
+        Array of velocity uncertainties.
+    bin_size : float
+        Radial size of each bin. Units are the same as x.
+    show_progress : bool
+        Whether to show progress with tqdm bar. Default is False.
+
+    Returns
+    -------
+    bin_centers : array_like
+        Array of bin centers.
+    sigma : array_like
+        Array of velocity dispersions.
+    delta_sigma : array_like
+        Array of velocity dispersion uncertainties.
+
+    See Also
+    --------
+    create_binning : Create binning for dispersion profiles.
+    """
+
+    # get the minimum and maximum of x
+    x_min = np.min(x)
+    x_max = np.max(x)
+
+    # create bins
+    bins_edges = np.arange(x_min, x_max + bin_size, bin_size)
+
+    bins = len(bins_edges) - 1
+
+    stars_per_bin = np.histogram(x, bins=bins_edges)[0]
+
+    # initialize arrays
+    sigma = np.zeros(bins)
+    delta_sigma = np.zeros(bins)
+    bin_centers = np.zeros(bins)
+
+    # loop over bins
+    start = 0
+    for i in trange(bins, disable=not show_progress):
+        # set end of bin
+        end = np.min([start + int(stars_per_bin[i]), len(x)])
+        # calculate velocity dispersion
+        # sigma[i], delta_sigma[i] = comp_veldisp(vi[start:end], ei[start:end])
+        sigma[i], delta_sigma[i] = comp_veldisp_emcee(vi[start:end], ei[start:end])
+        bin_centers[i] = np.mean(x[start:end])
+
+        start += int(stars_per_bin[i])
+
+        # put this here for now, this shouldn't happen anymore?
+        if np.abs(sigma[i]) > 100:
+            logging.warning("solver failed, try more stars per bin")
+            sigma[i] = np.nan
+            delta_sigma[i] = np.nan
+
+    return bin_centers, sigma, delta_sigma
+
+
 def create_binning(
     xs, prepend_bins, append_bins, middle_bin_size=None, N_middle_bins=None
 ):
@@ -679,18 +748,18 @@ class Observations:
         kms_t = self.rng.normal(loc=stars["va[KM/S]"].values, scale=errs)
 
         # build profiles
-        bin_centers, sigma_r, delta_sigma_r = veldisp_profile(
+        bin_centers, sigma_r, delta_sigma_r = veldisp_profile_radial_binning(
             x=stars["d[PC]"].values,
             vi=kms_r,
             ei=errs,
-            stars_per_bin=stars_per_bin,
+            bin_size=1.0,  # 1 arcsec bins
         )
 
-        bin_centers, sigma_t, delta_sigma_t = veldisp_profile(
+        bin_centers, sigma_t, delta_sigma_t = veldisp_profile_radial_binning(
             x=stars["d[PC]"].values,
             vi=kms_t,
             ei=errs,
-            stars_per_bin=stars_per_bin,
+            bin_size=1.0,  # 1 arcsec bins
         )
         # get mean mass for these profiles
         mean_mass = np.mean(stars["m[MSUN]"])
