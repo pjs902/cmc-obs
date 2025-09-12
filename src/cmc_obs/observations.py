@@ -747,19 +747,22 @@ class Observations:
         kms_r = self.rng.normal(loc=stars["vd[KM/S]"].values, scale=errs)
         kms_t = self.rng.normal(loc=stars["va[KM/S]"].values, scale=errs)
 
+        # bin size of 1 arcsec, need to convert to pc
+        bin_size = (1.0 * u.arcsec).to(u.pc).value
+
         # build profiles
         bin_centers, sigma_r, delta_sigma_r = veldisp_profile_radial_binning(
             x=stars["d[PC]"].values,
             vi=kms_r,
             ei=errs,
-            bin_size=1.0,  # 1 arcsec bins
+            bin_size=bin_size,
         )
 
         bin_centers, sigma_t, delta_sigma_t = veldisp_profile_radial_binning(
             x=stars["d[PC]"].values,
             vi=kms_t,
             ei=errs,
-            bin_size=1.0,  # 1 arcsec bins
+            bin_size=bin_size,
         )
         # get mean mass for these profiles
         mean_mass = np.mean(stars["m[MSUN]"])
