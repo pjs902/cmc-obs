@@ -18,6 +18,10 @@ from gcfit.util.data import ClusterFile, Dataset
 from scipy.optimize import fsolve
 from tqdm import trange
 
+import scipy as sp
+
+import pocomc as pc
+
 # jax setup
 jax.config.update("jax_enable_x64", True)
 
@@ -149,6 +153,52 @@ def comp_veldisp(vi, ei):
     return np.mean(sigma_samples), np.std(sigma_samples)
 
 
+def comp_veldisp_pocoMC(vi, ei):
+    """
+    Usual velocity dispersion calculation, but inference is with pocoMC.
+
+    Not (yet) an idealogical change, just a band-aid for strange JAX XLA compilation errors that I
+    don't have time to deal with right now.
+
+    Parameters
+    ----------
+    vi : array_like
+        Array of velocities.
+    ei : array_like
+        Array of velocity uncertainties.
+    Returns
+    -------
+    sigma : float
+        Velocity dispersion.
+    delta_sigma : float
+        Uncertainty in velocity dispersion.
+    """
+
+    n_dim = 2
+
+    prior = pc.Prior(
+        sp.stats.uniform(loc=np.mean(vi) - 10, scale=20),  # mu
+        sp.stats.uniform(loc=0, scale=30),  # sigma
+    )
+
+    def log_likelihood(theta):
+        mu, sigma = theta
+        return -0.5 * np.sum(
+            np.log(sigma**2 + ei**2) + (((vi - mu) ** 2) / (sigma**2 + ei**2))
+        )
+
+    sampler = pc.Sampler(
+        prior=prior, likelihood=log_likelihood, vectorize=True, random_state=42
+    )
+
+    sampler.run()
+
+    samples, logl, logp = sampler.posterior(resample=True)
+
+    sigma_samples = samples[:, 1]
+    return np.mean(sigma_samples), np.std(sigma_samples)
+
+
 def veldisp_profile(x, vi, ei, stars_per_bin=15, show_progress=False):
     """
     Compute velocity dispersion profile from velocity dispersion measurements and their uncertainties.
@@ -202,7 +252,8 @@ def veldisp_profile(x, vi, ei, stars_per_bin=15, show_progress=False):
         # set end of bin
         end = np.min([start + int(stars_per_bin[i]), len(x)])
         # calculate velocity dispersion
-        sigma[i], delta_sigma[i] = comp_veldisp(vi[start:end], ei[start:end])
+        # sigma[i], delta_sigma[i] = comp_veldisp(vi[start:end], ei[start:end])
+        sigma[i], delta_sigma[i] = comp_veldisp_pocoMC(vi[start:end], ei[start:end])
         bin_centers[i] = np.mean(x[start:end])
 
         start += int(stars_per_bin[i])
