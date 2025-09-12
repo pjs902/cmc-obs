@@ -605,9 +605,9 @@ class Observations:
         stars_per_bin=-1,
         r_outer=13,
         mag_lim_bright=10.25,
-        mag_lim_faint=20.0,
+        mag_lim_faint=19.5,
         *,
-        max_per_bin=250,
+        max_per_bin=500,
         min_per_bin=120,
     ):
         """
@@ -658,7 +658,7 @@ class Observations:
 
         # take 50% of these stars to simulate crowding issues, no idea if this is sensible but just
         # getting way too many stars at the moment
-        stars = stars.sample(frac=0.5, random_state=42)
+        stars = stars.sample(frac=0.5)
 
         logging.info(f"ERISPM: number of stars, post-crowding = {len(stars)}")
 
