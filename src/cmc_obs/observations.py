@@ -18,6 +18,8 @@ from gcfit.util.data import ClusterFile, Dataset
 from scipy.optimize import fsolve
 from tqdm import trange
 
+from astropy.stats import biweight_location, biweight_scale
+
 import scipy as sp
 
 import pocomc as pc
@@ -51,6 +53,11 @@ def comp_veldisp_MLE(vi, ei, guess_sigma_c=None, guess_vbar=None):
     error_sigma_c : float
         Velocity dispersion uncertainty.
     """
+
+    if guess_sigma_c is None:
+        guess_sigma_c = biweight_scale(vi)
+    if guess_vbar is None:
+        guess_vbar = biweight_location(vi)
 
     def func(x):
         # x[0] is velocity dispersion, x[1] is mean (vbar)
@@ -230,7 +237,7 @@ def comp_veldisp_emcee(vi, ei):
             np.log(sigma**2 + ei**2) + (((vi - mu) ** 2) / (sigma**2 + ei**2))
         )
 
-    initial_position = np.array([np.mean(vi), np.std(vi)])
+    initial_position = np.array([biweight_location(vi), biweight_scale(vi)])
 
     # Set up the sampler
     nwalkers = 50
@@ -248,7 +255,7 @@ def comp_veldisp_emcee(vi, ei):
     samples = samples[1000:]
 
     # Compute the statistics
-    sigma = np.std(samples[:, 1])
+    sigma = np.median(samples[:, 1])
     delta_sigma = np.std(samples[:, 1])
 
     return sigma, delta_sigma
