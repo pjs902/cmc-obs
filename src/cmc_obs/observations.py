@@ -177,8 +177,10 @@ def comp_veldisp_pocoMC(vi, ei):
     n_dim = 2
 
     prior = pc.Prior(
-        sp.stats.uniform(loc=np.mean(vi) - 10, scale=20),  # mu
-        sp.stats.uniform(loc=0, scale=30),  # sigma
+        [
+            sp.stats.uniform(loc=np.mean(vi) - 10, scale=20),  # mu
+            sp.stats.uniform(loc=0, scale=30),  # sigma
+        ]
     )
 
     def log_likelihood(theta):
