@@ -492,7 +492,7 @@ class Observations:
         stars_per_bin=-1,
         r_outer=13,
         mag_lim_bright=10.25,
-        mag_lim_faint=22.0,
+        mag_lim_faint=21.5,
         *,
         max_per_bin=250,
         min_per_bin=120,
@@ -507,9 +507,9 @@ class Observations:
         r_outer : float
             Outer radius for ERIS measurements, units of arcseconds. Default is 13.
         mag_lim_bright : float
-            Bright magnitude limit for ERIS measurements. Default is 15.
+            Bright magnitude limit for ERIS measurements. Default is 10.25.
         mag_lim_faint : float
-            Faint magnitude limit for ERIS measurements. Default is 20.
+            Faint magnitude limit for ERIS measurements. Default is 21.5.
 
         Returns
         -------
