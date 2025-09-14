@@ -674,7 +674,7 @@ class Observations:
         stars_per_bin=-1,
         r_outer=13,
         mag_lim_bright=10.25,
-        mag_lim_faint=19.5,
+        mag_lim_faint=21.0,
         *,
         max_per_bin=500,
         min_per_bin=120,
