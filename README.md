@@ -1,4 +1,4 @@
-## cmc-obs
+# cmc-obs
 
 This library takes in a `Snapshot` object loaded by [`cmc-browser`](https://github.com/pjs902/cmc-browser) and computes various mock
 observations. In particular, this library will extract number density profiles, line-of-sight and
@@ -18,6 +18,33 @@ calling a method:
 # compute simulated Gaia proper motions
 bin_centers, sigma_r, delta_sigma_r, sigma_t, delta_sigma_t, mean_mass = k.gaia_PMs()
 ```
+
+## Controlling Observations Generation
+
+By default, `cmc-obs` generates all observations that you would reasonably expect for most clusters. You can control which observations are generated using the `observations` parameter in the `write_obs()` method:
+
+```python
+
+# Include ERIS observations explicitly
+k.write_obs(observations=['hubble', 'gaia', 'eris', 'los', 'nd', 'mf'])
+
+# Generate only proper motion observations
+k.write_obs(observations=['hubble', 'gaia', 'eris'])
+
+# Generate only ERIS observations
+k.write_obs(observations=['eris'])
+```
+
+Available observation types:
+
+- `'hubble'`: Hubble Space Telescope proper motions
+- `'gaia'`: Gaia proper motions  
+- `'eris'`: ERIS proper motions (excluded by default)
+- `'los'`: Line-of-sight velocity dispersions
+- `'nd'`: Number density profiles
+- `'mf'`: Stellar mass functions
+
+## Details
 
 Internally, filtering based on stellar types and magnitudes is done for each dataset to match
 real-world performance. For example, line-of-sight velocity dispersions are limited to bright giants
@@ -52,4 +79,5 @@ Finally, this library will handle wrangling the data into the format that `GCfit
 the needed metadata to be used directly in the fitting.
 
 ## See also
+
 [`cmc-browser`](https://github.com/pjs902/cmc-browser): A small library for managing a local grid of CMC models and loading the models as `Snapshot` objects which are needed for `cmc-obs`.
