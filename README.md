@@ -19,6 +19,34 @@ calling a method:
 bin_centers, sigma_r, delta_sigma_r, sigma_t, delta_sigma_t, mean_mass = k.gaia_PMs()
 ```
 
+## Controlling Observations Generation
+
+By default, `cmc-obs` generates all observations except ERIS proper motions. You can control which observations are generated using the `observations` parameter in the `write_obs()` method:
+
+```python
+# Default behavior (excludes ERIS)
+k.write_obs()
+
+# Include ERIS observations explicitly
+k.write_obs(observations=['hubble', 'gaia', 'eris', 'los', 'nd', 'mf'])
+
+# Generate only proper motion observations
+k.write_obs(observations=['hubble', 'gaia', 'eris'])
+
+# Generate only ERIS observations
+k.write_obs(observations=['eris'])
+```
+
+Available observation types:
+- `'hubble'`: Hubble Space Telescope proper motions
+- `'gaia'`: Gaia proper motions  
+- `'eris'`: ERIS proper motions (excluded by default)
+- `'los'`: Line-of-sight velocity dispersions
+- `'nd'`: Number density profiles
+- `'mf'`: Stellar mass functions
+
+**Note**: ERIS observations are excluded by default since they are not typically available for real observations and should only be generated when explicitly requested for specialized studies.
+
 Internally, filtering based on stellar types and magnitudes is done for each dataset to match
 real-world performance. For example, line-of-sight velocity dispersions are limited to bright giants
 while the Gaia proper motions cover a range of $13 < G< 19$.
