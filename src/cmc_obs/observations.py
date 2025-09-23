@@ -1145,6 +1145,7 @@ class Observations:
 
     def write_obs(
         self,
+        observations=None,
         hubble_kwargs=None,
         gaia_kwargs=None,
         eris_kwargs=None,
@@ -1156,7 +1157,39 @@ class Observations:
     ):
         """
         Write the simulated observations to a file.
+
+        Parameters
+        ----------
+        observations : list, optional
+            List of observations to generate. Valid options are: 'hubble', 'gaia', 'eris', 'los', 'nd', 'mf'.
+            Default is ['hubble', 'gaia', 'los', 'nd', 'mf'] (excludes 'eris').
+        hubble_kwargs : dict, optional
+            Keyword arguments for Hubble PM observations.
+        gaia_kwargs : dict, optional
+            Keyword arguments for Gaia PM observations.
+        eris_kwargs : dict, optional
+            Keyword arguments for ERIS PM observations.
+        LOS_kwargs : dict, optional
+            Keyword arguments for line-of-sight dispersion observations.
+        nd_kwargs : dict, optional
+            Keyword arguments for number density observations.
+        mf_kwargs : dict, optional
+            Keyword arguments for mass function observations.
+        inner_annuli : list, optional
+            Inner annuli for mass function calculations.
+        outer_annuli_centers : list, optional
+            Outer annuli centers for mass function calculations.
         """
+
+        # Set default observations (excludes ERIS by default)
+        if observations is None:
+            observations = ['hubble', 'gaia', 'los', 'nd', 'mf']
+        
+        # Validate observations parameter
+        valid_observations = ['hubble', 'gaia', 'eris', 'los', 'nd', 'mf']
+        for obs in observations:
+            if obs not in valid_observations:
+                raise ValueError(f"Invalid observation type '{obs}'. Valid options are: {valid_observations}")
 
         hubble_kwargs = {} if hubble_kwargs is None else hubble_kwargs
         gaia_kwargs = {} if gaia_kwargs is None else gaia_kwargs
@@ -1173,287 +1206,292 @@ class Observations:
         metadata = {}
 
         # Hubble PM
-        (
-            bin_centers,
-            sigma_r,
-            delta_sigma_r,
-            sigma_t,
-            delta_sigma_t,
-            mean_mass,
-        ) = self.hubble_PMs(**hubble_kwargs)
+        if 'hubble' in observations:
+            (
+                bin_centers,
+                sigma_r,
+                delta_sigma_r,
+                sigma_t,
+                delta_sigma_t,
+                mean_mass,
+            ) = self.hubble_PMs(**hubble_kwargs)
 
-        # round to 3 decimal places
-        bin_centers = np.round(bin_centers, 3)
-        sigma_r = np.round(sigma_r, 3)
-        delta_sigma_r = np.round(delta_sigma_r, 3)
-        sigma_t = np.round(sigma_t, 3)
-        delta_sigma_t = np.round(delta_sigma_t, 3)
-        mean_mass = np.round(mean_mass, 3)
+            # round to 3 decimal places
+            bin_centers = np.round(bin_centers, 3)
+            sigma_r = np.round(sigma_r, 3)
+            delta_sigma_r = np.round(delta_sigma_r, 3)
+            sigma_t = np.round(sigma_t, 3)
+            delta_sigma_t = np.round(delta_sigma_t, 3)
+            mean_mass = np.round(mean_mass, 3)
 
-        # create dataframe
-        df = pd.DataFrame(
-            {
-                "r": bin_centers,
-                "σ_R": sigma_r,
-                "Δσ_R": delta_sigma_r,
-                "σ_T": sigma_t,
-                "Δσ_T": delta_sigma_t,
-            }
-        )
-        # drop rows with NaNs
-        df = df.dropna()
+            # create dataframe
+            df = pd.DataFrame(
+                {
+                    "r": bin_centers,
+                    "σ_R": sigma_r,
+                    "Δσ_R": delta_sigma_r,
+                    "σ_T": sigma_t,
+                    "Δσ_T": delta_sigma_t,
+                }
+            )
+            # drop rows with NaNs
+            df = df.dropna()
 
-        # write to file
-        df.to_csv(
-            f"./raw_data/{self.cluster_name}_hubble_pm.csv", index=False, header=True
-        )
-        metadata["hubble_mean_mass"] = mean_mass
+            # write to file
+            df.to_csv(
+                f"./raw_data/{self.cluster_name}_hubble_pm.csv", index=False, header=True
+            )
+            metadata["hubble_mean_mass"] = mean_mass
 
         # ERIS PM
-        (
-            bin_centers,
-            sigma_r,
-            delta_sigma_r,
-            sigma_t,
-            delta_sigma_t,
-            mean_mass,
-        ) = self.ERIS_PMs(**eris_kwargs)
-        # round to 3 decimal places
-        bin_centers = np.round(bin_centers, 3)
-        sigma_r = np.round(sigma_r, 3)
-        delta_sigma_r = np.round(delta_sigma_r, 3)
-        sigma_t = np.round(sigma_t, 3)
-        delta_sigma_t = np.round(delta_sigma_t, 3)
-        mean_mass = np.round(mean_mass, 3)
-        # create dataframe
-        df = pd.DataFrame(
-            {
-                "r": bin_centers,
-                "σ_R": sigma_r,
-                "Δσ_R": delta_sigma_r,
-                "σ_T": sigma_t,
-                "Δσ_T": delta_sigma_t,
-            }
-        )
-        # drop rows with NaNs
-        df = df.dropna()
+        if 'eris' in observations:
+            (
+                bin_centers,
+                sigma_r,
+                delta_sigma_r,
+                sigma_t,
+                delta_sigma_t,
+                mean_mass,
+            ) = self.ERIS_PMs(**eris_kwargs)
+            # round to 3 decimal places
+            bin_centers = np.round(bin_centers, 3)
+            sigma_r = np.round(sigma_r, 3)
+            delta_sigma_r = np.round(delta_sigma_r, 3)
+            sigma_t = np.round(sigma_t, 3)
+            delta_sigma_t = np.round(delta_sigma_t, 3)
+            mean_mass = np.round(mean_mass, 3)
+            # create dataframe
+            df = pd.DataFrame(
+                {
+                    "r": bin_centers,
+                    "σ_R": sigma_r,
+                    "Δσ_R": delta_sigma_r,
+                    "σ_T": sigma_t,
+                    "Δσ_T": delta_sigma_t,
+                }
+            )
+            # drop rows with NaNs
+            df = df.dropna()
 
-        # write to file
-        df.to_csv(
-            f"./raw_data/{self.cluster_name}_eris_pm.csv", index=False, header=True
-        )
-        metadata["eris_mean_mass"] = mean_mass
+            # write to file
+            df.to_csv(
+                f"./raw_data/{self.cluster_name}_eris_pm.csv", index=False, header=True
+            )
+            metadata["eris_mean_mass"] = mean_mass
 
         # Gaia PM
-        (
-            bin_centers,
-            sigma_r,
-            delta_sigma_r,
-            sigma_t,
-            delta_sigma_t,
-            mean_mass,
-        ) = self.gaia_PMs(**gaia_kwargs)
+        if 'gaia' in observations:
+            (
+                bin_centers,
+                sigma_r,
+                delta_sigma_r,
+                sigma_t,
+                delta_sigma_t,
+                mean_mass,
+            ) = self.gaia_PMs(**gaia_kwargs)
 
-        # round to 3 decimal places
-        bin_centers = np.round(bin_centers, 3)
-        sigma_r = np.round(sigma_r, 3)
-        delta_sigma_r = np.round(delta_sigma_r, 3)
-        sigma_t = np.round(sigma_t, 3)
-        delta_sigma_t = np.round(delta_sigma_t, 3)
-        mean_mass = np.round(mean_mass, 3)
+            # round to 3 decimal places
+            bin_centers = np.round(bin_centers, 3)
+            sigma_r = np.round(sigma_r, 3)
+            delta_sigma_r = np.round(delta_sigma_r, 3)
+            sigma_t = np.round(sigma_t, 3)
+            delta_sigma_t = np.round(delta_sigma_t, 3)
+            mean_mass = np.round(mean_mass, 3)
 
-        # create dataframe
-        df = pd.DataFrame(
-            {
-                "r": bin_centers,
-                "σ_R": sigma_r,
-                "Δσ_R": delta_sigma_r,
-                "σ_T": sigma_t,
-                "Δσ_T": delta_sigma_t,
-            }
-        )
-        # drop rows with NaNs
-        df = df.dropna()
+            # create dataframe
+            df = pd.DataFrame(
+                {
+                    "r": bin_centers,
+                    "σ_R": sigma_r,
+                    "Δσ_R": delta_sigma_r,
+                    "σ_T": sigma_t,
+                    "Δσ_T": delta_sigma_t,
+                }
+            )
+            # drop rows with NaNs
+            df = df.dropna()
 
-        # write to file
-        df.to_csv(
-            f"./raw_data/{self.cluster_name}_gaia_pm.csv", index=False, header=True
-        )
-        metadata["gaia_mean_mass"] = mean_mass
+            # write to file
+            df.to_csv(
+                f"./raw_data/{self.cluster_name}_gaia_pm.csv", index=False, header=True
+            )
+            metadata["gaia_mean_mass"] = mean_mass
 
         # LOS Dispersion
-        bin_centers, sigmas, delta_sigmas, mean_mass = self.LOS_dispersion(**LOS_kwargs)
+        if 'los' in observations:
+            bin_centers, sigmas, delta_sigmas, mean_mass = self.LOS_dispersion(**LOS_kwargs)
 
-        # round to 3 decimal places
-        bin_centers = np.round(bin_centers, 3)
-        sigmas = np.round(sigmas, 3)
-        delta_sigmas = np.round(delta_sigmas, 3)
-        mean_mass = np.round(mean_mass, 3)
+            # round to 3 decimal places
+            bin_centers = np.round(bin_centers, 3)
+            sigmas = np.round(sigmas, 3)
+            delta_sigmas = np.round(delta_sigmas, 3)
+            mean_mass = np.round(mean_mass, 3)
 
-        # create dataframe
-        df = pd.DataFrame(
-            {
-                "r": bin_centers,
-                "σ": sigmas,
-                "Δσ": delta_sigmas,
-            }
-        )
-        # drop rows with NaNs
-        df = df.dropna()
+            # create dataframe
+            df = pd.DataFrame(
+                {
+                    "r": bin_centers,
+                    "σ": sigmas,
+                    "Δσ": delta_sigmas,
+                }
+            )
+            # drop rows with NaNs
+            df = df.dropna()
 
-        # write to file
-        df.to_csv(
-            f"./raw_data/{self.cluster_name}_los_dispersion.csv",
-            index=False,
-            header=True,
-        )
-        metadata["los_mean_mass"] = mean_mass
+            # write to file
+            df.to_csv(
+                f"./raw_data/{self.cluster_name}_los_dispersion.csv",
+                index=False,
+                header=True,
+            )
+            metadata["los_mean_mass"] = mean_mass
 
         # Number Density
-        (
-            bin_centers,
-            number_density,
-            delta_number_density,
-            mean_mass,
-        ) = self.number_density(**nd_kwargs)
+        if 'nd' in observations:
+            (
+                bin_centers,
+                number_density,
+                delta_number_density,
+                mean_mass,
+            ) = self.number_density(**nd_kwargs)
 
-        # round to 3 decimal places
-        bin_centers = np.round(bin_centers, 3)
-        number_density = np.round(number_density, 3)
-        delta_number_density = np.round(delta_number_density, 3)
-        mean_mass = np.round(mean_mass, 3)
+            # round to 3 decimal places
+            bin_centers = np.round(bin_centers, 3)
+            number_density = np.round(number_density, 3)
+            delta_number_density = np.round(delta_number_density, 3)
+            mean_mass = np.round(mean_mass, 3)
 
-        df = pd.DataFrame(
-            {
-                "rad": bin_centers,
-                "density": number_density,
-                "density_err": delta_number_density,
-            }
-        )
-        # drop rows with NaNs
-        df = df.dropna()
+            df = pd.DataFrame(
+                {
+                    "rad": bin_centers,
+                    "density": number_density,
+                    "density_err": delta_number_density,
+                }
+            )
+            # drop rows with NaNs
+            df = df.dropna()
 
-        # write to file
-        df.to_csv(
-            f"./raw_data/{self.cluster_name}_number_density.csv",
-            index=False,
-            header=True,
-        )
-        metadata["number_mean_mass"] = mean_mass
+            # write to file
+            df.to_csv(
+                f"./raw_data/{self.cluster_name}_number_density.csv",
+                index=False,
+                header=True,
+            )
+            metadata["number_mean_mass"] = mean_mass
 
         # Mass Function
+        if 'mf' in observations:
+            # area of innermost annulus
+            # for only the outer 2 annuli:
+            # calculate the inner and outer radii of each annulus, based on the
+            # centers of the annuli matching the desired area
+            # For now lets normalize to the 47 Tuc Heinke exposure, eg 0-1.5' annulus
+            # inner_annuli = [
+            #     (0, 0.4),
+            #     (0.4, 0.8),
+            #     (0.8, 1.2),
+            #     (1.2, 1.6),
+            # ]
 
-        # area of innermost annulus
-        # for only the outer 2 annuli:
-        # calculate the inner and outer radii of each annulus, based on the
-        # centers of the annuli matching the desired area
-        # For now lets normalize to the 47 Tuc Heinke exposure, eg 0-1.5' annulus
-        # inner_annuli = [
-        #     (0, 0.4),
-        #     (0.4, 0.8),
-        #     (0.8, 1.2),
-        #     (1.2, 1.6),
-        # ]
+            outer_annuli_centers <<= u.arcmin
+            # outer_annuli_centers = [2.5, 5] << u.arcmin
+            # outer_annuli_centers = [2.5, 5, 6, 7.5, 10, 11, 12, 17.5] << u.arcmin
+            # outer_annuli_centers = [2.5, 5, 6, 7.5, 10,] << u.arcmin
+            # outer_annuli_centers = [2.5, ] << u.arcmin
 
-        outer_annuli_centers <<= u.arcmin
-        # outer_annuli_centers = [2.5, 5] << u.arcmin
-        # outer_annuli_centers = [2.5, 5, 6, 7.5, 10, 11, 12, 17.5] << u.arcmin
-        # outer_annuli_centers = [2.5, 5, 6, 7.5, 10,] << u.arcmin
-        # outer_annuli_centers = [2.5, ] << u.arcmin
+            # target area of outer annuli
+            area = np.pi * 2.5 * u.arcmin**2
 
-        # target area of outer annuli
-        area = np.pi * 2.5 * u.arcmin**2
-
-        # build the outer annuli
-        outer_annuli = []
-        for i in range(len(outer_annuli_centers)):
-            w = area / (4 * np.pi * outer_annuli_centers[i])
-            outer_annuli.append(
-                (
-                    outer_annuli_centers[i].value - w.value,
-                    outer_annuli_centers[i].value + w.value,
+            # build the outer annuli
+            outer_annuli = []
+            for i in range(len(outer_annuli_centers)):
+                w = area / (4 * np.pi * outer_annuli_centers[i])
+                outer_annuli.append(
+                    (
+                        outer_annuli_centers[i].value - w.value,
+                        outer_annuli_centers[i].value + w.value,
+                    )
                 )
+
+            # concat the inner and outer annuli
+            annuli = inner_annuli + outer_annuli
+            logging.info(f"MF: Annuli: {annuli}")
+
+            r_ins = []
+            r_outs = []
+            m1s = []
+            m2s = []
+            mass_functions = []
+            delta_mass_functions = []
+
+            for i in range(len(annuli)):
+                # print(f"making mass function for {annuli[i]}")
+                try:
+                    mass_edges, mass_function, delta_mass_function = self.mass_function(
+                        r_in=annuli[i][0], r_out=annuli[i][1], **mf_kwargs
+                    )
+                except RuntimeError:
+                    # logging.info(f'Failed to make MF between {annuli[i]}')
+                    logging.warning(f"Failed to make MF between {annuli[i]}")
+                    continue
+
+                for _ in range(len(mass_function)):
+                    r_ins.append(annuli[i][0])
+                    r_outs.append(annuli[i][1])
+                m1 = mass_edges[:-1]
+                m2 = mass_edges[1:]
+                m1s.append(m1.flatten())
+                m2s.append(m2.flatten())
+                mass_functions.append(mass_function.flatten())
+                delta_mass_functions.append(delta_mass_function.flatten())
+
+            # need to flatten lists before converting to numpy arrays, not sure why this broke things,
+            # somehow related to making arrays from ragged lists and its recent deprecation
+            m1s = [item for elem in m1s for item in elem]
+            m2s = [item for elem in m2s for item in elem]
+            mass_functions = [item for elem in mass_functions for item in elem]
+            delta_mass_functions = [item for elem in delta_mass_functions for item in elem]
+
+            # convert to numpy arrays
+            r_ins = np.array(r_ins).flatten()
+            r_outs = np.array(r_outs).flatten()
+            m1s = np.array(m1s).flatten()
+            m2s = np.array(m2s).flatten()
+            mass_functions = np.array(mass_functions).flatten()
+            delta_mass_functions = np.array(delta_mass_functions).flatten()
+
+            # round to 3 decimal places
+            r_ins = np.round(r_ins, 3)
+            r_outs = np.round(r_outs, 3)
+            m1s = np.round(m1s, 3)
+            m2s = np.round(m2s, 3)
+            mass_functions = np.round(mass_functions, 3)
+            delta_mass_functions = np.round(delta_mass_functions, 3)
+
+            # Only keep datapoints with N>5
+            mask = mass_functions > 5
+
+            # create dataframe
+            df = pd.DataFrame(
+                {
+                    "r1": r_ins[mask],
+                    "r2": r_outs[mask],
+                    "m1": m1s[mask],
+                    "m2": m2s[mask],
+                    "N": mass_functions[mask],
+                    "ΔN": delta_mass_functions[mask],
+                }
             )
 
-        # concat the inner and outer annuli
-        annuli = inner_annuli + outer_annuli
-        logging.info(f"MF: Annuli: {annuli}")
+            # drop rows with NaNs
+            df = df.dropna()
 
-        r_ins = []
-        r_outs = []
-        m1s = []
-        m2s = []
-        mass_functions = []
-        delta_mass_functions = []
-
-        for i in range(len(annuli)):
-            # print(f"making mass function for {annuli[i]}")
-            try:
-                mass_edges, mass_function, delta_mass_function = self.mass_function(
-                    r_in=annuli[i][0], r_out=annuli[i][1], **mf_kwargs
-                )
-            except RuntimeError:
-                # logging.info(f'Failed to make MF between {annuli[i]}')
-                logging.warning(f"Failed to make MF between {annuli[i]}")
-                continue
-
-            for _ in range(len(mass_function)):
-                r_ins.append(annuli[i][0])
-                r_outs.append(annuli[i][1])
-            m1 = mass_edges[:-1]
-            m2 = mass_edges[1:]
-            m1s.append(m1.flatten())
-            m2s.append(m2.flatten())
-            mass_functions.append(mass_function.flatten())
-            delta_mass_functions.append(delta_mass_function.flatten())
-
-        # need to flatten lists before converting to numpy arrays, not sure why this broke things,
-        # somehow related to making arrays from ragged lists and its recent deprecation
-        m1s = [item for elem in m1s for item in elem]
-        m2s = [item for elem in m2s for item in elem]
-        mass_functions = [item for elem in mass_functions for item in elem]
-        delta_mass_functions = [item for elem in delta_mass_functions for item in elem]
-
-        # convert to numpy arrays
-        r_ins = np.array(r_ins).flatten()
-        r_outs = np.array(r_outs).flatten()
-        m1s = np.array(m1s).flatten()
-        m2s = np.array(m2s).flatten()
-        mass_functions = np.array(mass_functions).flatten()
-        delta_mass_functions = np.array(delta_mass_functions).flatten()
-
-        # round to 3 decimal places
-        r_ins = np.round(r_ins, 3)
-        r_outs = np.round(r_outs, 3)
-        m1s = np.round(m1s, 3)
-        m2s = np.round(m2s, 3)
-        mass_functions = np.round(mass_functions, 3)
-        delta_mass_functions = np.round(delta_mass_functions, 3)
-
-        # Only keep datapoints with N>5
-        mask = mass_functions > 5
-
-        # create dataframe
-        df = pd.DataFrame(
-            {
-                "r1": r_ins[mask],
-                "r2": r_outs[mask],
-                "m1": m1s[mask],
-                "m2": m2s[mask],
-                "N": mass_functions[mask],
-                "ΔN": delta_mass_functions[mask],
-            }
-        )
-
-        # drop rows with NaNs
-        df = df.dropna()
-
-        # write to file
-        df.to_csv(
-            f"./raw_data/{self.cluster_name}_mass_function.csv",
-            index=False,
-            header=True,
-        )
+            # write to file
+            df.to_csv(
+                f"./raw_data/{self.cluster_name}_mass_function.csv",
+                index=False,
+                header=True,
+            )
 
         # save metadata
         with open(f"{self.cluster_name}_metadata.json", "w", encoding="utf8") as f:
@@ -1501,151 +1539,150 @@ class Observations:
         cf.add_metadata("Ndot", 0.0)
         cf.add_metadata("vesc", self.snapshot.vesc_initial)
 
-        # start with radial velocity data
-
+        # start with radial velocity data (only if file exists)
         LOS_fn = pathlib.Path(f"./raw_data/{self.cluster_name}_los_dispersion.csv")
+        if LOS_fn.exists():
+            err = {"Δσ": "σ"}
+            units = {"r": "arcsec", "σ": "km/s", "Δσ": "km/s"}
+            keys = "r", "σ", "Δσ"
 
-        err = {"Δσ": "σ"}
-        units = {"r": "arcsec", "σ": "km/s", "Δσ": "km/s"}
-        keys = "r", "σ", "Δσ"
+            LOS = Dataset("velocity_dispersion/LOS")
 
-        LOS = Dataset("velocity_dispersion/LOS")
+            LOS.read_data(LOS_fn, delim=r",", keys=keys, units=units, errors=err)
+            if include_masses and "los_mean_mass" in metadata:
+                LOS.add_metadata("m", float(metadata["los_mean_mass"]))
 
-        LOS.read_data(LOS_fn, delim=r",", keys=keys, units=units, errors=err)
-        if include_masses:
-            LOS.add_metadata("m", float(metadata["los_mean_mass"]))
-
-        LOS.add_metadata("source", "LOS Data")
-        cf.add_dataset(LOS)
+            LOS.add_metadata("source", "LOS Data")
+            cf.add_dataset(LOS)
 
         # Now the proper motion data
 
-        # start with the Hubble data
-
+        # start with the Hubble data (only if file exists)
         Hubble_fn = pathlib.Path(f"./raw_data/{self.cluster_name}_hubble_pm.csv")
+        if Hubble_fn.exists():
+            # keys = 'r', 'σ_tot', 'Δσ_tot', 'σ_R', 'Δσ_R', 'σ_T', 'Δσ_T'
+            keys = "r", "σ_R", "Δσ_R", "σ_T", "Δσ_T"
 
-        # keys = 'r', 'σ_tot', 'Δσ_tot', 'σ_R', 'Δσ_R', 'σ_T', 'Δσ_T'
-        keys = "r", "σ_R", "Δσ_R", "σ_T", "Δσ_T"
+            names = {"σ_R": "PM_R", "σ_T": "PM_T"}
+            err = {"Δσ_R": "PM_R", "Δσ_T": "PM_T"}
+            units = {
+                "r": "arcsec",
+                "σ_R": "mas/yr",
+                "σ_T": "mas/yr",
+                "Δσ_R": "mas/yr",
+                "Δσ_T": "mas/yr",
+            }
+            PM = Dataset("proper_motion/Hubble")
 
-        names = {"σ_R": "PM_R", "σ_T": "PM_T"}
-        err = {"Δσ_R": "PM_R", "Δσ_T": "PM_T"}
-        units = {
-            "r": "arcsec",
-            "σ_R": "mas/yr",
-            "σ_T": "mas/yr",
-            "Δσ_R": "mas/yr",
-            "Δσ_T": "mas/yr",
-        }
-        PM = Dataset("proper_motion/Hubble")
-
-        PM.read_data(
-            Hubble_fn, delim=r",", keys=keys, units=units, errors=err, names=names
-        )
-        if include_masses:
-            PM.add_metadata("m", float(metadata["hubble_mean_mass"]))
-
-        PM.add_metadata("source", "HST")
-
-        cf.add_dataset(PM)
-
-        # Now the Gaia data
-        Gaia_fn = pathlib.Path(f"./raw_data/{self.cluster_name}_gaia_pm.csv")
-
-        keys = "r", "σ_R", "Δσ_R", "σ_T", "Δσ_T"
-
-        names = {"σ_R": "PM_R", "σ_T": "PM_T"}
-        err = {"Δσ_R": "PM_R", "Δσ_T": "PM_T"}
-        units = {
-            "r": "arcsec",
-            "σ_R": "mas/yr",
-            "σ_T": "mas/yr",
-            "Δσ_R": "mas/yr",
-            "Δσ_T": "mas/yr",
-        }
-        PM = Dataset("proper_motion/Gaia")
-
-        PM.read_data(
-            Gaia_fn, delim=r",", keys=keys, units=units, errors=err, names=names
-        )
-
-        if include_masses:
-            PM.add_metadata("m", float(metadata["gaia_mean_mass"]))
-
-        # indicate which DR was used to generate the data
-        PM.add_metadata(
-            "source", f"Gaia {obskwargs.get('gaia_kwargs', {}).get('gaia_DR', 'DR3')}"
-        )
-        cf.add_dataset(PM)
-
-        # Now the ERIS data
-        ERIS_fn = pathlib.Path(f"./raw_data/{self.cluster_name}_eris_pm.csv")
-        keys = "r", "σ_R", "Δσ_R", "σ_T", "Δσ_T"
-        names = {"σ_R": "PM_R", "σ_T": "PM_T"}
-        err = {"Δσ_R": "PM_R", "Δσ_T": "PM_T"}
-        units = {
-            "r": "arcsec",
-            "σ_R": "mas/yr",
-            "σ_T": "mas/yr",
-            "Δσ_R": "mas/yr",
-            "Δσ_T": "mas/yr",
-        }
-        PM = Dataset("proper_motion/ERIS")
-        PM.read_data(
-            ERIS_fn, delim=r",", keys=keys, units=units, errors=err, names=names
-        )
-        if include_masses:
-            PM.add_metadata("m", float(metadata["eris_mean_mass"]))
-        PM.add_metadata("source", "ERIS")
-        cf.add_dataset(PM)
-
-        # now the number density data
-
-        ND_fn = pathlib.Path(f"./raw_data/{self.cluster_name}_number_density.csv")
-
-        units = {"rad": "arcmin", "density": "1/arcmin2", "density_err": "1/arcmin2"}
-        names = {"rad": "r", "density": "Σ"}
-        err = {"density_err": "Σ"}
-
-        ND = Dataset("number_density")
-
-        ND.read_data(ND_fn, delim=r",", units=units, errors=err, names=names)
-
-        if include_masses:
-            ND.add_metadata("m", float(metadata["number_mean_mass"]))
-
-        # Set the background level, zero in this case
-        bg = 0.0
-        ND.add_metadata("background", bg)
-
-        ND.add_metadata("source", "Gaia + HST")
-        cf.add_dataset(ND)
-
-        # now the mass function data
-
-        keys = ("r1", "r2", "m1", "m2", "N", "ΔN")
-        units = {"r1": "arcmin", "r2": "arcmin", "m1": "Msun", "m2": "Msun"}
-        err = {"ΔN": "N"}
-        fields = {}
-        # just a huge square
-        fields["CMC"] = {
-            "a": np.array(
-                [[2.0, 2.0], [2.0, -2.0], [-2.0, -2.0], [-2.0, 2.0]], dtype="f"
+            PM.read_data(
+                Hubble_fn, delim=r",", keys=keys, units=units, errors=err, names=names
             )
-        }
-        MF = Dataset("mass_function/CMC")
-        mf_df = pd.read_csv(f"./raw_data/{self.cluster_name}_mass_function.csv")
+            if include_masses and "hubble_mean_mass" in metadata:
+                PM.add_metadata("m", float(metadata["hubble_mean_mass"]))
 
-        MF.read_data(mf_df, keys=keys, units=units, errors=err)
+            PM.add_metadata("source", "HST")
 
-        logging.info(f"MF: {fields = }")
-        fld = fields["CMC"]
-        logging.info(f"MF: {fld = }")
-        MF.add_variable("fields", h5py.Empty("f"), "deg", fld)
-        MF.add_metadata("field_unit", "deg")
+            cf.add_dataset(PM)
 
-        MF.add_metadata("source", "HST")
-        MF.add_metadata("proposal", "CMC-obs")
-        cf.add_dataset(MF)
+        # Now the Gaia data (only if file exists)
+        Gaia_fn = pathlib.Path(f"./raw_data/{self.cluster_name}_gaia_pm.csv")
+        if Gaia_fn.exists():
+            keys = "r", "σ_R", "Δσ_R", "σ_T", "Δσ_T"
+
+            names = {"σ_R": "PM_R", "σ_T": "PM_T"}
+            err = {"Δσ_R": "PM_R", "Δσ_T": "PM_T"}
+            units = {
+                "r": "arcsec",
+                "σ_R": "mas/yr",
+                "σ_T": "mas/yr",
+                "Δσ_R": "mas/yr",
+                "Δσ_T": "mas/yr",
+            }
+            PM = Dataset("proper_motion/Gaia")
+
+            PM.read_data(
+                Gaia_fn, delim=r",", keys=keys, units=units, errors=err, names=names
+            )
+
+            if include_masses and "gaia_mean_mass" in metadata:
+                PM.add_metadata("m", float(metadata["gaia_mean_mass"]))
+
+            # indicate which DR was used to generate the data
+            PM.add_metadata(
+                "source", f"Gaia {obskwargs.get('gaia_kwargs', {}).get('gaia_DR', 'DR3')}"
+            )
+            cf.add_dataset(PM)
+
+        # Now the ERIS data (only if file exists)
+        ERIS_fn = pathlib.Path(f"./raw_data/{self.cluster_name}_eris_pm.csv")
+        if ERIS_fn.exists():
+            keys = "r", "σ_R", "Δσ_R", "σ_T", "Δσ_T"
+            names = {"σ_R": "PM_R", "σ_T": "PM_T"}
+            err = {"Δσ_R": "PM_R", "Δσ_T": "PM_T"}
+            units = {
+                "r": "arcsec",
+                "σ_R": "mas/yr",
+                "σ_T": "mas/yr",
+                "Δσ_R": "mas/yr",
+                "Δσ_T": "mas/yr",
+            }
+            PM = Dataset("proper_motion/ERIS")
+            PM.read_data(
+                ERIS_fn, delim=r",", keys=keys, units=units, errors=err, names=names
+            )
+            if include_masses and "eris_mean_mass" in metadata:
+                PM.add_metadata("m", float(metadata["eris_mean_mass"]))
+            PM.add_metadata("source", "ERIS")
+            cf.add_dataset(PM)
+
+        # now the number density data (only if file exists)
+        ND_fn = pathlib.Path(f"./raw_data/{self.cluster_name}_number_density.csv")
+        if ND_fn.exists():
+            units = {"rad": "arcmin", "density": "1/arcmin2", "density_err": "1/arcmin2"}
+            names = {"rad": "r", "density": "Σ"}
+            err = {"density_err": "Σ"}
+
+            ND = Dataset("number_density")
+
+            ND.read_data(ND_fn, delim=r",", units=units, errors=err, names=names)
+
+            if include_masses and "number_mean_mass" in metadata:
+                ND.add_metadata("m", float(metadata["number_mean_mass"]))
+
+            # Set the background level, zero in this case
+            bg = 0.0
+            ND.add_metadata("background", bg)
+
+            ND.add_metadata("source", "Gaia + HST")
+            cf.add_dataset(ND)
+
+        # now the mass function data (only if file exists)
+        MF_fn = pathlib.Path(f"./raw_data/{self.cluster_name}_mass_function.csv")
+        if MF_fn.exists():
+            keys = ("r1", "r2", "m1", "m2", "N", "ΔN")
+            units = {"r1": "arcmin", "r2": "arcmin", "m1": "Msun", "m2": "Msun"}
+            err = {"ΔN": "N"}
+            fields = {}
+            # just a huge square
+            fields["CMC"] = {
+                "a": np.array(
+                    [[2.0, 2.0], [2.0, -2.0], [-2.0, -2.0], [-2.0, 2.0]], dtype="f"
+                )
+            }
+            MF = Dataset("mass_function/CMC")
+            mf_df = pd.read_csv(MF_fn)
+
+            MF.read_data(mf_df, keys=keys, units=units, errors=err)
+
+            logging.info(f"MF: {fields = }")
+            fld = fields["CMC"]
+            logging.info(f"MF: {fld = }")
+            MF.add_variable("fields", h5py.Empty("f"), "deg", fld)
+            MF.add_metadata("field_unit", "deg")
+
+            MF.add_metadata("source", "HST")
+            MF.add_metadata("proposal", "CMC-obs")
+            cf.add_dataset(MF)
 
         # write the datafile
         cf.save(force=True)
